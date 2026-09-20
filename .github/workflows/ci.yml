@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [Main]
+  pull_request:
+    branches: [Main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: abaplint (static analysis)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install toolchain
+        run: npm ci
+
+      - name: Run abaplint
+        run: npm run lint
+
+  unit:
+    name: ABAP Unit (off-stack, open-abap)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install toolchain
+        run: npm ci
+
+      - name: Transpile and run ABAP Unit
+        run: npm test | tee unit.txt
+
+      - name: Result summary
+        if: always()
+        run: |
+          {
+            echo '### ABAP Unit (off-stack)'
+            echo
+            echo '```'
+            grep -E '^(PASS|FAIL|XFAIL|XPASS|passed:)' unit.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
