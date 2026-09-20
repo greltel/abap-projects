@@ -1,0 +1,17 @@
+{
+  "name": "abap-projects",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Build tooling for the ABAP Projects repository: abaplint static analysis and off-stack ABAP Unit execution via the abaplint transpiler and open-abap-core.",
+  "license": "MIT",
+  "scripts": {
+    "lint": "abaplint abaplint.json",
+    "transpile": "abap_transpile abap_transpile.json",
+    "test": "bash ci/run_ci.sh",
+    "clean": "rm -rf ci/out"
+  },
+  "devDependencies": {
+    "@abaplint/cli": "^2.120.55",
+    "@abaplint/transpiler-cli": "^2.13.89"
+  }
+}

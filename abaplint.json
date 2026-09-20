@@ -10,39 +10,33 @@
     }
   ],
   "syntax": {
-    "version": "v702",
-    "errorNamespace": "^(Z|Y|LCL_|TY_|LIF_)"
+    "version": "v758",
+    "errorNamespace": "^(Z|Y|LCL_|LCX_|LTC_|LIF_|TY_)"
   },
   "rules": {
-    "exporting": true,
-    "local_class_naming": {
-      "exclude": [],
-      "severity": "Error",
-      "patternKind": "required",
-      "ignoreNames": [],
-      "ignorePatterns": [],
-      "local": "^L.+$",
-      "exception": "^LCX_.+$",
-      "test": "^L.+$"
+    "parser_error": true,
+    "check_syntax": {
+      "severity": "Warning"
     },
-    "method_parameter_names": {
-      "exclude": [],
+    "uncaught_exception": true,
+    "unused_variables": true,
+    "exporting": true,
+    "obsolete_statement": true,
+    "identical_conditions": true,
+    "unreachable_code": true,
+    "method_implemented_twice": true,
+    "where_in_empty_itab": true,
+    "sql_escape_host_variables": true,
+    "local_class_naming": {
       "severity": "Error",
       "patternKind": "required",
-      "ignoreNames": [],
-      "ignorePatterns": [],
-      "ignoreExceptions": true,
-      "importing": "^I._.+$",
-      "returning": "^R._.+$",
-      "changing": "^C._.+$",
-      "exporting": "^E._.+$"
+      "local": "^LCL_.+$",
+      "exception": "^LCX_.+$",
+      "test": "^LT[CDH]_.+$"
     },
     "object_naming": {
-      "exclude": [],
       "severity": "Error",
       "patternKind": "required",
-      "ignoreNames": [],
-      "ignorePatterns": [],
       "clas": "^ZC(L|X)",
       "intf": "^ZIF",
       "prog": "^Z",
@@ -63,20 +57,32 @@
       "shlp": "^Z"
     },
     "selection_screen_naming": {
-      "exclude": [],
       "severity": "Error",
       "patternKind": "required",
-      "ignoreNames": [],
-      "ignorePatterns": [],
       "parameter": "^P_.+$",
       "selectOption": "^S_.+$",
       "screenElement": "^(SC|T)_.+$"
     },
-    "types_naming": {
-      "exclude": [],
+    "method_parameter_names": {
       "severity": "Error",
-      "pattern": "^T.+$"
+      "patternKind": "required",
+      "ignoreExceptions": true,
+      "ignoreNames": [
+        "textid",
+        "previous"
+      ],
+      "exclude": [
+        "testclasses\\.abap$",
+        "zcx_.+\\.clas\\.abap$"
+      ],
+      "importing": "^I._.+$",
+      "returning": "^R._.+$",
+      "changing": "^C._.+$",
+      "exporting": "^E._.+$"
     },
-    "unused_variables": true
+    "types_naming": {
+      "severity": "Error",
+      "pattern": "^(T|EN).+$"
+    }
   }
 }
