@@ -1,0 +1,12 @@
+# Node tooling (abaplint + transpiler)
+node_modules/
+
+# Transpiler output and its local runtime install
+ci/out/
+
+# abaplint dependency clone
+/deps/
+
+# Local scratch
+*.log
+lint.txt
