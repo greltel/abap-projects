@@ -7,21 +7,33 @@
 ************************************************************************
 REPORT zcount_single_multiple_values.
 
+PARAMETERS p_col  TYPE string OBLIGATORY DEFAULT 'ACCOUNTINGDOCCREATEDBYUSER' LOWER CASE.
+PARAMETERS p_rows TYPE i      OBLIGATORY DEFAULT 10000.
+
 *&---------------------------------------------------------------------*
 *& EXECUTABLE CODE
 *&---------------------------------------------------------------------*
 START-OF-SELECTION.
 
-  SELECT FROM i_journalentry FIELDS i_journalentry~* INTO TABLE @DATA(lt_table) UP TO 10000 ROWS.
+  SELECT FROM i_journalentry
+    FIELDS i_journalentry~*
+    INTO TABLE @DATA(journal_entries)
+    UP TO @p_rows ROWS.
 
-  zcl_abap_projects=>count_single_multiple_values( EXPORTING im_table           = lt_table
-                                                             im_column_name     = 'ACCOUNTINGDOCCREATEDBYUSER'
-                                                   IMPORTING ex_unique_values   = DATA(lo_unique_values)
-                                                             ex_multiple_values = DATA(lo_multiple_values) ).
+  TRY.
+      zcl_abap_projects=>count_single_multiple_values(
+        EXPORTING im_table           = journal_entries
+                  im_column_name     = p_col
+        IMPORTING ex_unique_values   = DATA(unique_values)
+                  ex_multiple_values = DATA(multiple_values) ).
 
-  CHECK lo_unique_values IS BOUND AND lo_multiple_values IS BOUND.
+      ASSIGN unique_values->*   TO FIELD-SYMBOL(<unique>).
+      ASSIGN multiple_values->* TO FIELD-SYMBOL(<multiple>).
 
-  ASSIGN lo_unique_values->* TO FIELD-SYMBOL(<fs_table_unique>).
-  ASSIGN lo_multiple_values->* TO FIELD-SYMBOL(<fs_table_multiple>).
+      WRITE: / |Column { p_col } over { lines( journal_entries ) } rows|,
+             / |Values occurring once      : { lines( <unique> ) }|,
+             / |Values occurring more often: { lines( <multiple> ) }|.
 
-END-OF-SELECTION.
+    CATCH zcx_abap_projects INTO DATA(error).
+      MESSAGE error->get_text( ) TYPE 'S' DISPLAY LIKE 'E'.
+  ENDTRY.

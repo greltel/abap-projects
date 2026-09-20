@@ -43,10 +43,10 @@ CLASS lcl_texts DEFINITION CREATE PUBLIC.
 
     METHODS:
 
-      get_data IMPORTING so_object          TYPE STANDARD TABLE
-                         so_tdname          TYPE STANDARD TABLE
-                         so_tdid            TYPE STANDARD TABLE
-                         so_spras           TYPE STANDARD TABLE
+      get_data IMPORTING im_object          TYPE STANDARD TABLE
+                         im_tdname          TYPE STANDARD TABLE
+                         im_tdid            TYPE STANDARD TABLE
+                         im_spras           TYPE STANDARD TABLE
                RETURNING VALUE(re_instance) TYPE REF TO lcl_texts
                RAISING   lcx_texts,
 
@@ -157,10 +157,10 @@ START-OF-SELECTION.
 
   TRY.
 
-      NEW lcl_texts( )->get_data( so_object = s_obj[]
-                                  so_spras  = s_spras[]
-                                  so_tdid   = s_tdid[]
-                                  so_tdname = s_tdname[] )->download_texts( im_filename               = p_file
+      NEW lcl_texts( )->get_data( im_object = s_obj[]
+                                  im_spras  = s_spras[]
+                                  im_tdid   = s_tdid[]
+                                  im_tdname = s_tdname[] )->download_texts( im_filename               = p_file
                                                                             im_field_labels_as_header = p_header ).
 
 
@@ -175,7 +175,7 @@ END-OF-SELECTION.
 *----------------------------------------------------------------------*
 CLASS lcl_sel_screen IMPLEMENTATION.
 
-  METHOD 	get_instance.
+  METHOD get_instance.
 
     IF lo_instance IS NOT BOUND.
       lo_instance = NEW #( ).
@@ -270,10 +270,10 @@ CLASS lcl_texts IMPLEMENTATION.
     CLEAR me->lt_texts.
     SELECT FROM stxh
       FIELDS stxh~tdobject, stxh~tdname, stxh~tdid, stxh~tdspras, stxh~tdtxtlines
-      WHERE tdobject IN  @so_object
-        AND tdname   IN  @so_tdname
-        AND tdid     IN  @so_tdid
-        AND tdspras  IN  @so_spras
+      WHERE tdobject IN  @im_object
+        AND tdname   IN  @im_tdname
+        AND tdid     IN  @im_tdid
+        AND tdspras  IN  @im_spras
         INTO CORRESPONDING FIELDS OF TABLE @me->lt_texts.
 
     IF syst-subrc IS NOT INITIAL OR lt_texts IS INITIAL.
@@ -335,7 +335,7 @@ CLASS lcl_texts IMPLEMENTATION.
         cl_salv_table=>factory( IMPORTING r_salv_table = DATA(lo_salv) CHANGING t_table = me->lt_texts ).
         DATA(lt_fieldcatalog) = cl_salv_controller_metadata=>get_lvc_fieldcatalog( r_columns = lo_salv->get_columns( ) r_aggregations = lo_salv->get_aggregations( ) ).
       CATCH cx_salv_msg INTO DATA(lo_exception).
-        EXIT.
+        RAISE EXCEPTION TYPE lcx_texts EXPORTING text = lo_exception->get_text( ).
     ENDTRY.
 
     IF im_field_labels_as_header EQ abap_true.
@@ -376,8 +376,6 @@ CLASS lcl_texts IMPLEMENTATION.
         filename                = |{ im_filename }|
         filetype                = 'BIN'
         confirm_overwrite       = abap_true
-      IMPORTING
-        filelength              = DATA(lv_bytestransferred)
       CHANGING
         data_tab                = lt_binary_content
       EXCEPTIONS

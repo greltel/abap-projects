@@ -7,6 +7,8 @@
 ************************************************************************
 REPORT z_split_table.
 
+PARAMETERS p_seg TYPE i OBLIGATORY DEFAULT 25.
+
 *&----------------------------------------------------------------------*
 *& EXECUTABLE CODE
 *&----------------------------------------------------------------------*
@@ -14,18 +16,22 @@ START-OF-SELECTION.
 
   SELECT FROM i_companycode
     FIELDS i_companycode~*
-    INTO TABLE @DATA(lt_data).
+    INTO TABLE @DATA(company_codes).
 
-  DATA(lr_sub_tables) = zcl_abap_projects=>split_table( im_table          = lt_data
-                                                        im_split_segment  = 25 ).
+  TRY.
+      DATA(chunks) = zcl_abap_projects=>split_table( im_table         = company_codes
+                                                     im_split_segment = p_seg ).
 
-  CHECK lr_sub_tables IS NOT INITIAL.
+      WRITE: / |{ lines( company_codes ) } rows split into { lines( chunks ) } chunks of { p_seg }|.
 
-  LOOP AT lr_sub_tables ASSIGNING FIELD-SYMBOL(<fs_sub_table>).
+      LOOP AT chunks ASSIGNING FIELD-SYMBOL(<chunk>).
 
-  ENDLOOP.
+        ASSIGN <chunk>->* TO FIELD-SYMBOL(<rows>).
 
-END-OF-SELECTION.
-*&----------------------------------------------------------------------*
-*& END OF EXECUTABLE CODE
-*&----------------------------------------------------------------------*
+        WRITE: / |Chunk { sy-tabix }: { lines( <rows> ) } rows|.
+
+      ENDLOOP.
+
+    CATCH zcx_abap_projects INTO DATA(error).
+      MESSAGE error->get_text( ) TYPE 'S' DISPLAY LIKE 'E'.
+  ENDTRY.

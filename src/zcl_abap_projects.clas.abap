@@ -176,10 +176,10 @@ CLASS zcl_abap_projects DEFINITION
       RETURNING VALUE(re_result) TYPE t_lock_result.
 
     CLASS-METHODS message_text
-      IMPORTING !textid        LIKE if_t100_message=>t100key
-                !object_name   TYPE string
-                !detail        TYPE string OPTIONAL
-      RETURNING VALUE(re_text) TYPE string.
+      IMPORTING !im_textid      LIKE if_t100_message=>t100key
+                !im_object_name TYPE string
+                !im_detail      TYPE string OPTIONAL
+      RETURNING VALUE(re_text)  TYPE string.
 
 ENDCLASS.
 
@@ -476,9 +476,9 @@ CLASS zcl_abap_projects IMPLEMENTATION.
 
   METHOD message_text.
 
-    re_text = NEW zcx_abap_projects( textid      = textid
-                                     object_name = object_name
-                                     detail      = detail )->get_text( ).
+    re_text = NEW zcx_abap_projects( textid      = im_textid
+                                     object_name = im_object_name
+                                     detail      = im_detail )->get_text( ).
 
   ENDMETHOD.
 
@@ -523,12 +523,12 @@ CLASS zcl_abap_projects IMPLEMENTATION.
       WHEN sy-subrc = 1
         THEN VALUE #( success   = abap_false
                       locked_by = sy-msgv1
-                      msg_text  = message_text( textid      = zcx_abap_projects=>foreign_lock
-                                                object_name = |{ iv_table_name }|
-                                                detail      = |{ sy-msgv1 }| ) )
+                      msg_text  = message_text( im_textid      = zcx_abap_projects=>foreign_lock
+                                                im_object_name = |{ iv_table_name }|
+                                                im_detail      = |{ sy-msgv1 }| ) )
       ELSE VALUE #( success  = abap_false
-                    msg_text = message_text( textid      = zcx_abap_projects=>lock_failed
-                                             object_name = |{ iv_table_name }| ) ) ).
+                    msg_text = message_text( im_textid      = zcx_abap_projects=>lock_failed
+                                             im_object_name = |{ iv_table_name }| ) ) ).
 
   ENDMETHOD.
 
@@ -569,8 +569,8 @@ CLASS zcl_abap_projects IMPLEMENTATION.
       WHEN sy-subrc = 0
         THEN VALUE #( success = abap_true )
       ELSE VALUE #( success  = abap_false
-                    msg_text = message_text( textid      = zcx_abap_projects=>unlock_failed
-                                             object_name = |{ iv_table_name }| ) ) ).
+                    msg_text = message_text( im_textid      = zcx_abap_projects=>unlock_failed
+                                             im_object_name = |{ iv_table_name }| ) ) ).
 
   ENDMETHOD.
 
@@ -600,8 +600,8 @@ CLASS zcl_abap_projects IMPLEMENTATION.
 
     IF lock_object IS INITIAL.
       re_result = VALUE #( success  = abap_false
-                           msg_text = message_text( textid      = zcx_abap_projects=>no_lock_object
-                                                    object_name = |{ iv_table_name }| ) ).
+                           msg_text = message_text( im_textid      = zcx_abap_projects=>no_lock_object
+                                                    im_object_name = |{ iv_table_name }| ) ).
       RETURN.
     ENDIF.
 
@@ -659,15 +659,15 @@ CLASS zcl_abap_projects IMPLEMENTATION.
           WHEN sy-subrc = 1
             THEN VALUE #( success   = abap_false
                           locked_by = sy-msgv1
-                          msg_text  = message_text( textid      = zcx_abap_projects=>foreign_lock
-                                                    object_name = |{ iv_table_name }|
-                                                    detail      = |{ sy-msgv1 }| ) )
+                          msg_text  = message_text( im_textid      = zcx_abap_projects=>foreign_lock
+                                                    im_object_name = |{ iv_table_name }|
+                                                    im_detail      = |{ sy-msgv1 }| ) )
           ELSE VALUE #( success  = abap_false
                         msg_text = message_text(
-                                     textid      = COND #( WHEN iv_unlock = abap_true
-                                                           THEN zcx_abap_projects=>unlock_failed
-                                                           ELSE zcx_abap_projects=>lock_failed )
-                                     object_name = |{ iv_table_name }| ) ) ).
+                                     im_textid      = COND #( WHEN iv_unlock = abap_true
+                                                              THEN zcx_abap_projects=>unlock_failed
+                                                              ELSE zcx_abap_projects=>lock_failed )
+                                     im_object_name = |{ iv_table_name }| ) ) ).
 
       CATCH cx_sy_dyn_call_error INTO DATA(call_error).
         re_result = VALUE #( success  = abap_false

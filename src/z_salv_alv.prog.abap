@@ -10,7 +10,6 @@ REPORT z_salv_alv NO STANDARD PAGE HEADING LINE-COUNT 255.
 *&---------------------------------------------------------------------*
 *& DICTIONARY TABLES-TYPE POOLS
 *&---------------------------------------------------------------------*
-TYPE-POOLS:icon,slis,cntb.
 
 TABLES sscrfields.
 *&---------------------------------------------------------------------*
@@ -324,16 +323,16 @@ CLASS lcl_salv_edit DEFINITION INHERITING FROM cl_salv_controller CREATE PRIVATE
 
     CLASS-METHODS:
 
-      set_editable     IMPORTING VALUE(i_fieldname) TYPE csequence OPTIONAL
-                                 i_salv_table       TYPE REF TO cl_salv_table
-                                 VALUE(i_editable)  TYPE abap_bool DEFAULT abap_true
-                                 VALUE(i_refresh)   TYPE abap_bool DEFAULT abap_true.
+      set_editable     IMPORTING VALUE(im_fieldname) TYPE csequence OPTIONAL
+                                 im_salv_table       TYPE REF TO cl_salv_table
+                                 VALUE(im_editable)  TYPE abap_bool DEFAULT abap_true
+                                 VALUE(im_refresh)   TYPE abap_bool DEFAULT abap_true.
 
   PRIVATE SECTION.
 
 
-    CLASS-METHODS: get_control IMPORTING i_salv           TYPE REF TO cl_salv_model_base
-                               RETURNING VALUE(r_control) TYPE REF TO object.
+    CLASS-METHODS: get_control IMPORTING im_salv           TYPE REF TO cl_salv_model_base
+                               RETURNING VALUE(re_control) TYPE REF TO object.
 
 ENDCLASS."lcl_salv_edit DEFINITION
 
@@ -1799,9 +1798,9 @@ CLASS lcl_main_salv IMPLEMENTATION.
         me->lv_editable = xsdbool( me->lv_editable EQ abap_false ).
 
         "OPEN EDIT FOR SPECIFIC COLUMN THAT THE USER DOUBLE CLICKED
-        lcl_salv_edit=>set_editable( i_fieldname  = column
-                                     i_salv_table = me->lo_salv_alv
-                                     i_editable   = me->lv_editable ).
+        lcl_salv_edit=>set_editable( im_fieldname  = column
+                                     im_salv_table = me->lo_salv_alv
+                                     im_editable   = me->lv_editable ).
 
     ENDCASE.
 
@@ -1814,8 +1813,8 @@ CLASS lcl_main_salv IMPLEMENTATION.
       WHEN 'EDIT'."BUTTON THAT THE USER PRESSES.
 
         me->lv_editable = xsdbool( me->lv_editable EQ abap_false )."Flip Toggle TRUE-FALSE
-        lcl_salv_edit=>set_editable( i_salv_table = me->lo_salv_alv
-                                     i_editable   = me->lv_editable )."OPEN ALV EDIT FOR WHOLE TABLE
+        lcl_salv_edit=>set_editable( im_salv_table = me->lo_salv_alv
+                                     im_editable   = me->lv_editable )."OPEN ALV EDIT FOR WHOLE TABLE
 
       WHEN 'COLUMNS'.
 
@@ -1842,7 +1841,7 @@ CLASS lcl_main_salv IMPLEMENTATION.
     CHECK im_field IS NOT INITIAL AND im_alv IS BOUND.
 
     TRY.
-        CAST cl_salv_column_table( im_alv->get_columns( )->get_column( im_field ) )->set_cell_type( EXPORTING value = if_salv_c_cell_type=>hotspot ).
+        CAST cl_salv_column_table( im_alv->get_columns( )->get_column( im_field ) )->set_cell_type( value = if_salv_c_cell_type=>hotspot ).
       CATCH cx_salv_not_found cx_salv_data_error cx_sy_ref_is_initial. "#EC NO_HANDLER
     ENDTRY.
 
@@ -1985,15 +1984,15 @@ CLASS lcl_utilities IMPLEMENTATION.
     IF im_map_by_structure EQ abap_false."GET STRUCTURE FROM TABLE ROW
 
       "GET THE COLUMN NAMES FROM THE SPECIFIED ROW(IMPORTING PARAMETER)
-      REFRESH t_column.
+      CLEAR t_column.
       CLEAR:v_index.
       LOOP AT im_table ASSIGNING FIELD-SYMBOL(<s_tab>).
-        ADD 1 TO v_index.
+        v_index = v_index + 1.
 
         IF v_index EQ im_structure_line."LOOP ONLY THE SPECIFIED STRUCTURE ROW
           CLEAR v_column.
           DO.
-            ADD 1 TO v_column.
+            v_column = v_column + 1.
             ASSIGN COMPONENT v_column OF STRUCTURE <s_tab> TO FIELD-SYMBOL(<fs_any>).
             IF syst-subrc IS INITIAL.
               APPEND VALUE #( component =  <fs_any> column = v_column ) TO t_column.
@@ -2016,7 +2015,7 @@ CLASS lcl_utilities IMPLEMENTATION.
                                                                                       type_kind NE cl_abap_typedescr=>typekind_struct1 AND
                                                                                       name NE lcl_main_salv=>lc_checkbox AND
                                                                                       name NE lcl_main_salv=>lc_icon_column.
-        ADD 1 TO v_column.
+        v_column = v_column + 1.
         APPEND VALUE #( component =  <fs_components>-name column = v_column ) TO t_column.
       ENDLOOP.
 
@@ -2027,7 +2026,7 @@ CLASS lcl_utilities IMPLEMENTATION.
     "PASS DATA TO TABLE
     CLEAR v_index.
     LOOP AT im_table ASSIGNING <s_tab>.
-      ADD 1 TO v_index.
+      v_index = v_index + 1.
 
       IF v_index LT im_start_line.
         CONTINUE.
@@ -2253,9 +2252,9 @@ CLASS lcl_salv_edit IMPLEMENTATION.
 
   METHOD get_control.
 
-    CHECK i_salv IS BOUND.
+    CHECK im_salv IS BOUND.
 
-    DATA(lo_controller) = i_salv->r_controller.
+    DATA(lo_controller) = im_salv->r_controller.
     CHECK lo_controller IS BOUND.
 
     DATA(lo_adapter) = lo_controller->r_adapter.
@@ -2311,7 +2310,7 @@ ENDCLASS.
 *----------------------------------------------------------------------*
 CLASS lcl_sel_screen IMPLEMENTATION.
 
-  METHOD 	get_instance.
+  METHOD    get_instance.
 
     IF lo_instance IS NOT BOUND.
       lo_instance = NEW #( ).
@@ -2403,7 +2402,7 @@ CLASS lcl_sel_screen IMPLEMENTATION.
 
     IF p_hotsp IS NOT INITIAL AND p_table IS NOT INITIAL.
 
-      DATA(lv_field_exists) = lcl_utilities=>check_field_exists_in_table( EXPORTING im_field = CONV #( p_hotsp ) im_table = p_table ).
+      DATA(lv_field_exists) = lcl_utilities=>check_field_exists_in_table( im_field = CONV #( p_hotsp ) im_table = p_table ).
 
       IF lv_field_exists EQ abap_true.
 
@@ -2441,7 +2440,7 @@ CLASS lcl_sel_screen IMPLEMENTATION.
 
     IF p_layout IS NOT INITIAL.
 
-      DATA(lt_layout) = cl_salv_layout_service=>get_layouts( EXPORTING s_key = VALUE salv_s_layout_key( report = syst-repid ) ).
+      DATA(lt_layout) = cl_salv_layout_service=>get_layouts( s_key = VALUE salv_s_layout_key( report = syst-repid ) ).
       t_ldescr  = VALUE #( lt_layout[ layout = p_layout ]-text OPTIONAL ).
 
     ELSE.
