@@ -5,7 +5,7 @@
    <VSEOCLASS>
     <CLSNAME>ZCL_ABAP_PROJECTS</CLSNAME>
     <LANGU>E</LANGU>
-    <DESCRIPT>ABAP Projects Utility Class</DESCRIPT>
+    <DESCRIPT>Reusable dynamic ABAP utilities</DESCRIPT>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
@@ -38,6 +38,38 @@
      <LENGTH>60</LENGTH>
     </item>
    </TPOOL>
+   <DESCRIPTIONS>
+    <SEOCOMPOTX>
+     <CMPNAME>ALPHA_CONVERSION</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Apply a field DDIC conversion exit</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>BUILD_VARKEY</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Lock argument for ENQUEUE_E_TABLE</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>COUNT_SINGLE_MULTIPLE_VALUES</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Count unique and repeated values</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>LOCK_TABLE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Lock the records matching the key</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SPLIT_TABLE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Split a table into fixed size chunks</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>UNLOCK_TABLE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Release a lock taken by lock_table</DESCRIPT>
+    </SEOCOMPOTX>
+   </DESCRIPTIONS>
    <DESCRIPTIONS_SUB>
     <SEOSUBCOTX>
      <CMPNAME>BUILD_VARKEY</CMPNAME>

@@ -1,0 +1,80 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_MSAG" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <T100A>
+    <ARBGB>ZABAP_PROJECTS</ARBGB>
+    <MASTERLANG>E</MASTERLANG>
+    <STEXT>ABAP Projects Messages</STEXT>
+   </T100A>
+   <T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>010</MSGNR>
+     <TEXT>No active lock object exists for table &amp;1</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>011</MSGNR>
+     <TEXT>&amp;1 is locked by user &amp;2</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>012</MSGNR>
+     <TEXT>Lock on &amp;1 failed</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>013</MSGNR>
+     <TEXT>Unlock of &amp;1 failed</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>020</MSGNR>
+     <TEXT>&amp;1 is not an elementary type</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>021</MSGNR>
+     <TEXT>Unknown conversion direction &amp;1</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>022</MSGNR>
+     <TEXT>Conversion exit &amp;1 failed: &amp;2</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>030</MSGNR>
+     <TEXT>Column &amp;1 does not exist in the supplied table</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>031</MSGNR>
+     <TEXT>Segment size must be greater than zero, &amp;1 was supplied</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>032</MSGNR>
+     <TEXT>Key field &amp;1 has a type that cannot be placed in a lock argument</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZABAP_PROJECTS</ARBGB>
+     <MSGNR>033</MSGNR>
+     <TEXT>The key of table &amp;1 exceeds the 120 character lock argument</TEXT>
+    </T100>
+   </T100>
+  </asx:values>
+ </asx:abap>
+</abapGit>
