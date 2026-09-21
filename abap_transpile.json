@@ -4,5 +4,25 @@
   "output_folder": "ci/out",
   "libs": [{ "url": "https://github.com/open-abap/open-abap-core" }],
   "write_unit_tests": true,
-  "options": { "addCommonJS": true }
+  "options": {
+    "addCommonJS": true,
+    "skip": [
+      { "comment": "open-abap does not match WITH TABLE KEY (name) when the component name is a variable",
+        "object": "ZCL_ABAP_PROJECTS", "class": "ltc_count_values", "method": "given_mixed_then_splits_counts" },
+
+      { "comment": "DDIC conversion exits are not wired up off-stack, CONVEXIT comes back blank",
+        "object": "ZCL_ABAP_PROJECTS", "class": "ltc_alpha_conversion", "method": "given_alpha_in_then_padded" },
+      { "comment": "same CONVEXIT gap",
+        "object": "ZCL_ABAP_PROJECTS", "class": "ltc_alpha_conversion", "method": "given_alpha_out_then_stripped" },
+      { "comment": "same CONVEXIT gap",
+        "object": "ZCL_ABAP_PROJECTS", "class": "ltc_alpha_conversion", "method": "given_same_var_then_converted" },
+
+      { "comment": "get_ddic_field_list leaves INTTYPE and DATATYPE blank off-stack",
+        "object": "ZCL_ABAP_PROJECTS", "class": "ltc_build_varkey", "method": "given_mara_then_key_not_empty" },
+      { "comment": "same get_ddic_field_list gap",
+        "object": "ZCL_ABAP_PROJECTS", "class": "ltc_build_varkey", "method": "given_matnr_then_key_holds_it" },
+      { "comment": "same get_ddic_field_list gap",
+        "object": "ZCL_ABAP_PROJECTS", "class": "ltc_build_varkey", "method": "given_absent_key_then_initial" }
+    ]
+  }
 }
