@@ -6,8 +6,8 @@
   "license": "MIT",
   "scripts": {
     "lint": "abaplint abaplint.json",
-    "test": "abap_transpile abap_transpile.json && node ci/out/index.mjs",
-    "clean": "rm -rf ci/out"
+    "test": "abap_transpile abap_transpile.json && node output/index.mjs",
+    "clean": "rm -rf output"
   },
   "devDependencies": {
     "@abaplint/cli": "^2.120.55",
