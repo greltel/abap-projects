@@ -13,99 +13,142 @@ runtime behaviour in a way that requires callers to adapt.
 
 ### Added
 
+- `ZCX_ABAP_PROJECTS` — one exception class for the whole repository, based on
+  `CX_STATIC_CHECK` and `IF_T100_MESSAGE`, carrying the failing object name and
+  a free-text detail alongside the message.
+- `ZABAP_PROJECTS` message class, with the eleven T100 messages raised by
+  `ZCL_ABAP_PROJECTS` (locking 010–013, conversion 020–022, analysis 030–033).
+- ABAP Doc on every method of `ZCL_ABAP_PROJECTS`, documenting the contract and
+  the conditions under which each method raises.
+- Unit tests for `ZCL_ABAP_PROJECTS`: `LTC_COUNT_VALUES`, `LTC_ALPHA_CONVERSION`,
+  `LTC_SPLIT_TABLE` and `LTC_BUILD_VARKEY`, 18 tests in total, covering the
+  empty table, an unknown column, a zero segment size, a sorted source table, a
+  type without a conversion exit and an invalid conversion direction.
 - Continuous integration on GitHub Actions (`.github/workflows/ci.yml`) with two
-  jobs: `abaplint` static analysis, and off-stack ABAP Unit execution.
+  jobs: `abaplint` static analysis, and off-stack ABAP Unit execution with a
+  run summary.
 - Off-stack ABAP Unit pipeline built on the
   [abaplint transpiler](https://github.com/abaplint/transpiler) and
   [open-abap-core](https://github.com/open-abap/open-abap-core), so the tests run
-  on any machine with Node.js and no SAP system:
-  - `abap_transpile.json` — transpiler configuration.
-  - `ci/run_ci.sh` — pipeline driver (`npm test`).
-  - `ci/run_unit_tests.mjs` — test runner adding a `SYST` shim, per-test
-    isolation, and xfail handling.
-  - `ci/offstack-known-gaps.json` — tests that cannot pass off-stack, each with
-    the reason. A listed test that fails is reported `XFAIL`; one that starts
-    passing is reported `XPASS` and fails the build, so entries cannot rot.
-  - `ci/ddic/` — minimal DDIC stubs (`RSTABLE`, `DD25L`, and the data elements
-    and domains they need) for types the off-stack runtime has no dictionary for.
-- `package.json` with `npm run lint`, `npm test`, `npm run transpile`.
+  on any machine with Node.js and no SAP system. Configuration lives entirely in
+  `abap_transpile.json`; the transpiler generates its own test driver, so the
+  repository carries no runner script and no DDIC stub folder.
+  `"unknownTypes": "runtimeError"` lets objects that reference SAP standard
+  dictionary types transpile without stubs, and `options.skip` lists the seven
+  tests that cannot run off-stack, each with the reason.
+- `package.json` with `npm run lint`, `npm test` and `npm run clean`.
 - `CONTRIBUTING.md` — contribution guide covering the coding standards, the unit
-  test and ABAP Doc requirements, how to run both checks locally, and the known
-  limits of the off-stack runtime.
+  test and ABAP Doc requirements, how to run both checks locally, and the
+  verified limits of the off-stack runtime.
 - `CHANGELOG.md` — this file.
-- `.gitignore` for `node_modules/`, `ci/out/` and `/deps/`.
+- `.gitignore` for `node_modules/`, `/output/` and `/deps/`.
 
 ### Changed
 
 - `abaplint.json` now targets **v758** instead of **v702**. At v702 none of the
   modern-syntax sources could be parsed, and because `parser_error` was not
   enabled the parse failures were discarded silently — the configuration
-  reported a clean run while analysing nothing. `unused_variables` was switched
-  on but found none of the seven unused variables that exist in the code.
+  reported a clean run while analysing nothing.
 - `abaplint.json` rule set extended and split by severity. `Error` rules block
-  the build; `Warning` rules are the tracked cleanup backlog and are summarised
-  in the CI job summary on every run. Current state: **0 errors, 193 warnings**.
-- `ZCL_ABAP_PROJECTS=>COUNT_SINGLE_MULTIPLE_VALUES` — replaced
-  `DELETE TABLE <temp> WITH TABLE KEY (im_column_name) = <fs_temp_value>` with
-  the equivalent `DELETE TABLE <temp> FROM <fs_temp>`. The temporary table's only
-  key is that column and `<fs_temp>` is the row being examined, so the two forms
-  select the same row. The dynamic-key form cannot be parsed by abaplint at all
-  and blocked both CI jobs.
-- Test class `LTC_EXTERNAL_METHODS` — assertions moved from `CL_AUNIT_ASSERT` to
-  `CL_ABAP_UNIT_ASSERT` (8 call sites, identical signatures). `CL_AUNIT_ASSERT`
-  is obsolete, is not released for ABAP Cloud, and does not exist off-stack.
+  the build; `check_syntax` is `Warning` because `abaplint/deps` does not ship
+  `CL_SALV_CONTROLLER` or the complete type-pool `ABAP` constants, so those
+  findings are missing stubs rather than defects. Current state:
+  **0 errors, 5 warnings.**
+- `ZCL_ABAP_PROJECTS=>BUILD_VARKEY` is now public. It is a useful call in its own
+  right, and making it public lets the test class reach it without `LOCAL
+  FRIENDS`.
+- `ZCL_ABAP_PROJECTS=>COUNT_SINGLE_MULTIPLE_VALUES` rewritten as a single pass
+  over the source table into a hashed counter table. The previous implementation
+  copied the whole table once per row and then deleted from the table it was
+  looping over — O(n²) in time and memory, on an example that passes 10,000 rows.
+- Both exported tables of `COUNT_SINGLE_MULTIPLE_VALUES` are hashed and keyed by
+  the counted column, with an added `COUNT` component.
+- `UNLOCK_TABLE` and `LOCK_TABLE` now default `IV_SCOPE` to `'1'` on both sides.
+  The defaults used to be asymmetric (`'2'` to lock, `'3'` to unlock), so a
+  caller that accepted the defaults could not release its own lock.
+- Test assertions moved from `CL_AUNIT_ASSERT` to `CL_ABAP_UNIT_ASSERT`.
+  `CL_AUNIT_ASSERT` is obsolete, is not released for ABAP Cloud, and does not
+  exist off-stack.
+- The four demo reports (`Z_DYNAMIC_CONVERSION`, `Z_SPLIT_TABLE`,
+  `ZCOUNT_SINGLE_MULTIPLE_VALUES`, `Z_DYNAMIC_LOCK_UNLOCK`) now wrap their calls
+  in `TRY … CATCH zcx_abap_projects` and write their results, so they compile
+  against the new signatures and show what the utility returned.
+- `Z_SALV_ALV`: removed `TYPE-POOLS`, replaced `REFRESH` with `CLEAR` and
+  `ADD 1 TO` with an assignment, renamed the `LCL_SALV_EDIT` parameters to the
+  `IM_`/`RE_` convention, and dropped redundant `EXPORTING` keywords.
+- `Z_DYNAMIC_TEXTS_EXPORT`: parameters renamed to the `IM_` convention and the
+  unused byte counter removed.
+
+### Fixed
+
+- `BUILD_VARKEY` had an inverted length guard (`IF ( offset + len ) GE
+  varkey_length`). The key was written only when it would overflow, so for every
+  normal table nothing was written, `LOCK_TABLE` hit its `CHECK varkey IS NOT
+  INITIAL` and returned an initial result — reporting failure with no message,
+  having taken no lock. The generic (`IV_ENABLE_SPECIFIC_LOCK = ABAP_FALSE`)
+  locking path had therefore never worked.
+- `UNLOCK_TABLE` did not forward `IV_ENQMODE` to `EXECUTE_SPECIFIC_LOCK`, so the
+  dequeue ran with a blank lock mode and never released a lock taken with mode
+  `E`.
+- `KEY_FIELDS` called `CL_ABAP_TYPEDESCR=>DESCRIBE_BY_NAME` and
+  `GET_DDIC_FIELD_LIST` functionally. Both raise **classic** exceptions, so an
+  unknown table name produced a short dump instead of an empty result. Both are
+  now called with `EXCEPTIONS` and the return code is checked.
+- `EXECUTE_SPECIFIC_LOCK` read the lock object out of a one-component structure
+  as if it were a character field, which does not convert. It now reads the
+  component explicitly.
+- `ALPHA_CONVERSION`: the `CAST` to `CL_ABAP_ELEMDESCR` is guarded, the function
+  module return code is checked, and the `SWITCH` that picks the conversion
+  direction has an `ELSE` branch — without it the statement raised
+  `CX_SY_CASE_NOT_FOUND` and the "no conversion exit" path below it was
+  unreachable.
+- `ALPHA_CONVERSION` used `exit` as a variable name, which is an ABAP keyword.
+- `SPLIT_TABLE` now rejects a segment size of zero or less instead of looping.
+- `Z_DYNAMIC_TEXTS_EXPORT` swallowed `CX_SALV_MSG` and left the report through a
+  bare `EXIT`, so a failed download looked like a successful one. It now raises
+  `LCX_TEXTS` with a message.
 
 ### Known issues
 
-Open findings from the source review, not yet fixed. Listed newest-first by
-severity so they can be picked up in order.
+Open findings from the source review, not yet fixed. Listed by severity so they
+can be picked up in order.
 
 - `Z_SALV_ALV` performs a fully dynamic `SELECT * FROM (table)` driven by user
-  input with no `AUTHORITY-CHECK`. Any user who can start the report can read any
-  table in the system. Needs an `S_TABU_NAM` / `S_TABU_DIS` check before the
-  select, as `SE16N` does.
+  input with no `AUTHORITY-CHECK` (line 770). Any user who can start the report
+  can read any table in the system. Needs an `S_TABU_NAM` / `S_TABU_DIS` check
+  before the select, as `SE16N` does. There is no `AUTHORITY-CHECK` anywhere in
+  `src/` today.
 - `Z_SALV_ALV` depends on three foreign application namespaces for constants that
   are plain literals: `/ACCGO/IF_CCK_DPQS_CONSTANTS` and `/ACCGO/IF_CAS_CONSTANTS`
   (SAP Agricultural Contract Management), `CL_CMS_COMMON` (Collateral Management)
   and `CL_MMIM_MAA_2` (Inventory Management). The `/ACCGO/` add-on is not present
   on a standard S/4HANA system, so the program cannot be activated there.
   `Z_DYNAMIC_TEXTS_EXPORT` uses `CL_CMS_COMMON` for the same purpose.
-- `ZCL_ABAP_PROJECTS=>BUILD_VARKEY` has an inverted length guard
-  (`IF ( offset + len ) GE varkey_length`). The key is written only when it would
-  overflow, so for every normal table nothing is written, `LOCK_TABLE` hits its
-  `CHECK varkey IS NOT INITIAL` and returns an initial result — reporting failure
-  with no message, having taken no lock. The generic (`IV_ENABLE_SPECIFIC_LOCK =
-  ABAP_FALSE`) locking path has therefore never worked.
-- `ZCL_ABAP_PROJECTS=>UNLOCK_TABLE` does not forward `IV_ENQMODE` to
-  `EXECUTE_SPECIFIC_LOCK`, so the dequeue runs with a blank lock mode and does not
-  release a lock taken with mode `E`. The asymmetric scope defaults (`'2'` for
-  lock, `'3'` for unlock) need review at the same time.
-- `Z_SALV_ALV=>SCREEN_PBO` uses `COND #( … )` with no `ELSE` when setting
-  `SCREEN-ACTIVE`, `SCREEN-REQUEST` and `SCREEN-DISPLAY_3D`, so every screen
-  element that matches no branch is set to initial — blanking the 3D frame on the
-  whole selection screen and hiding every field without a `MODIF ID`. The
-  data-source branches are also swapped: selecting the database source activates
-  the Excel group (`ID3`) and vice versa.
+- `Z_SALV_ALV=>SCREEN_PBO` has the two data-source groups swapped: `P_DB`
+  activates group `ID3`, which is the Excel block, and `P_FILE` activates `ID4`,
+  which is the database block. Selecting either source shows the other one's
+  fields.
+- `Z_SALV_ALV=>SCREEN_PBO` also sets `SCREEN-REQUEST` and `SCREEN-DISPLAY_3D`
+  from a `COND #( )` with no `ELSE`. Every element other than `T_HITS` therefore
+  gets the initial value, blanking the 3D frame across the whole selection
+  screen on each PBO.
 - `LCL_SALV_EDIT=>SET_EDITABLE` and `GET_CONTROL` are entirely commented out, so
   the edit button and the double-click-to-edit behaviour advertised in the README
-  do nothing.
+  do nothing. The commented body still refers to the old `I_*` parameter names
+  and would not compile as it stands.
 - `LCL_UTILITIES=>CHECK_FIELD_EXISTS_IN_TABLE` and `DYNAMIC_WHERE_CLAUSE` type
   their field parameter as `CHAR5`, and `P_FIEL` on the selection screen is
   `CHAR5` as well. Field names up to 30 characters are silently truncated, so the
   existence check fails and the filter is dropped for most fields.
-- `ZCL_ABAP_PROJECTS=>COUNT_SINGLE_MULTIPLE_VALUES` copies the entire source table
-  once per row and then deletes from it row by row — O(n²) in both time and
-  memory. The example in the README passes 10,000 rows. A single pass over a
-  hashed count table is O(n). The inner loop also deletes from the table it is
-  looping over, which the ABAP documentation advises against.
 - `LCL_SEL_SCREEN=>FIELDS_F4` issues a `SELECT SINGLE` on `DD04T` inside a loop
   over every component of the selected table, and the inline `@DATA(scrtext_l)`
   is not cleared between iterations, so a field without a text inherits the
-  previous field's description.
-- `LCL_TEXTS=>POPULATE_TEXTS` calls `READ_MULTIPLE_TEXTS` once per row rather than
-  passing the whole key table in one call.
-- No unit tests exist for `LOCK_TABLE`, `UNLOCK_TABLE` or `BUILD_VARKEY`, and no
-  method in `ZCL_ABAP_PROJECTS` carries ABAP Doc.
+  previous field's description. The F4 window title is a hardcoded literal.
+- `LCL_TEXTS=>POPULATE_TEXTS` calls `READ_MULTIPLE_TEXTS` once per row of
+  `LT_TEXTS` rather than passing the whole key table in one call.
+- No unit tests exist for `LOCK_TABLE` and `UNLOCK_TABLE`. They call the
+  `ENQUEUE`/`DEQUEUE` function modules directly and need an injection seam before
+  they can be covered.
 
 ## [1.0.0] - 2026-01-15
 
