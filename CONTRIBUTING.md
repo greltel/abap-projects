@@ -70,12 +70,13 @@ required.
 
 ```bash
 npm ci        # install abaplint + the transpiler
-npm run lint  # static analysis  (must be clean)
-npm test      # off-stack ABAP Unit (must be clean)
+npm run lint  # static analysis      (must be clean)
+npm test      # off-stack ABAP Unit  (must be clean)
+npm run clean # remove the generated output/ folder
 ```
 
-Please run both before opening a pull request. CI runs exactly the same two
-commands.
+Please run both checks before opening a pull request. CI runs exactly the same
+two commands.
 
 ### `npm run lint` — abaplint
 
@@ -83,19 +84,30 @@ commands.
 are split into two severities on purpose:
 
 - **Error** — must be clean. The build fails.
-- **Warning** — the known cleanup backlog. Visible on every run and in the job
-  summary, but not blocking yet.
+- **Warning** — visible on every run and in the job summary, but not blocking.
 
 The working agreement for warnings is simple: **do not add new ones.** When you
 touch a file, clear the warnings in the part you touched. As a rule class drops
 to zero, promote it to `Error` in `abaplint.json` in the same pull request so it
 can never come back.
 
-Three rules are set to `Warning` because `abaplint/deps` does not ship the SALV
-and ALV grid classes or the complete type-pool `ABAP` constants — those findings
-are missing stubs, not defects: `check_syntax`, `implement_methods`,
-`superclass_final`. `dangerous_statement` is a genuine open finding (see rule 2
-above) and gets promoted back to `Error` once the authority check lands.
+Current state: **0 errors, 5 warnings.** All five come from `check_syntax`,
+which is the one rule deliberately set to `Warning`: `abaplint/deps` does not
+ship `CL_SALV_CONTROLLER` or the full type-pool `ABAP` constants, so those
+findings are missing stubs rather than defects. Treat a *new* `check_syntax`
+finding in your own code as an error anyway — the transpiler will reject it.
+
+Two rules are worth knowing about because they shape how code is written here:
+
+- `method_parameter_names` enforces the `IV_`/`EV_`/`CV_`/`RV_` prefixes. Test
+  includes and `ZCX_*` classes are excluded, since exception constructors take
+  `textid` and `previous`.
+- `sql_escape_host_variables` and `obsolete_statement` are `Error`. There is no
+  grandfathering — if you touch a statement, it comes up to standard.
+
+`dangerous_statement` is not enabled yet. It is switched on together with the
+authority check described in ground rule 2, so that the dynamic `SELECT` in
+`Z_SALV_ALV` does not permanently sit on an exemption.
 
 ### `npm test` — off-stack ABAP Unit
 
@@ -105,50 +117,66 @@ and executing it against
 [open-abap-core](https://github.com/open-abap/open-abap-core).
 
 ```
-src/*.abap ──▶ abap_transpile ──▶ ci/out/*.mjs ──▶ node ──▶ PASS / FAIL
+src/*.abap ──▶ abap_transpile ──▶ output/*.mjs ──▶ node ──▶ pass / fail
                      ▲
                open-abap-core
-               ci/ddic (stubs)
 ```
 
 | Path | Purpose |
 |---|---|
-| `abap_transpile.json` | Which objects get transpiled |
-| `ci/ddic/` | Minimal DDIC stubs (data elements, domains, tables) for objects the off-stack runtime has no dictionary for |
-| `ci/run_unit_tests.mjs` | Test runner: `SYST` shim, per-test isolation, xfail handling |
-| `ci/offstack-known-gaps.json` | Tests that cannot pass off-stack, with the reason |
-| `ci/run_ci.sh` | Pipeline driver |
-| `ci/out/` | Generated output — **not** committed |
+| `abap_transpile.json` | Which objects get transpiled, and which tests are skipped |
+| `output/` | Generated JavaScript and the test driver — **not** committed |
+
+There is no separate runner script and no DDIC stub folder. The transpiler
+generates `output/index.mjs` itself, and `package.json` simply chains the two
+steps:
+
+```json
+"test": "abap_transpile abap_transpile.json && node output/index.mjs"
+```
+
+**Why there are no DDIC stubs.** `abap_transpile.json` sets
+`"unknownTypes": "runtimeError"`. A type the off-stack runtime has no dictionary
+for — `MARA`, `VBELN`, `RSTABLE` and so on — no longer breaks transpilation; it
+only fails if a test that actually runs touches it. That keeps the repository
+free of hand-maintained stub XML, at the price of the failure surfacing later.
 
 **Adding an object to the off-stack suite.** Add a pattern to `input_filter` in
-`abap_transpile.json` and run `npm test`. If it fails on an unknown DDIC type,
-add a stub under `ci/ddic/` — copy the shape from an existing one. Note that a
-field in a `.tabl.xml` needs `<COMPTYPE>E</COMPTYPE>` when it refers to a data
-element via `ROLLNAME`; without it the parser expects an inline `DATATYPE` and
-aborts.
+`abap_transpile.json` and run `npm test`.
+
+**Skipping a test that cannot run off-stack.** Add an entry to `options.skip`,
+with a `comment` saying why:
+
+```json
+{ "comment": "DDIC conversion exits are not wired up off-stack, CONVEXIT comes back blank",
+  "object": "ZCL_ABAP_PROJECTS", "class": "ltc_alpha_conversion", "method": "given_alpha_in_then_padded" }
+```
+
+The test is then reported as `skipped due to configuration` and does not break
+the build. Keep the list short and keep every `comment` concrete — each entry is
+a limit on what CI can prove, so prefer making the code testable over adding an
+exception. Skip only for a genuine runtime gap, never to silence a real failure.
+Before adding one, check whether the test can be rescoped instead: a test that
+only exercises validation usually does not need a DDIC type at all.
 
 **What the off-stack runtime cannot do.** It is a real ABAP implementation, but
 not a complete one, and it is weakest in exactly the area this repository
-specialises in — runtime-typed dynamic programming. Known limits today:
+specialises in — runtime-typed dynamic programming. Verified limits today:
 
-- DDIC conversion exits are not wired up: `get_ddic_field( )-convexit` comes back
-  blank, so `CONVERSION_EXIT_*` routines are never reached.
-- `SORT <itab> BY (dynamic_name)` transpiles with the sort key **silently
-  dropped**.
-- `CORRESPONDING #( )` into a generic `FIELD-SYMBOL TYPE SORTED TABLE` whose row
-  type was built at runtime emits a placeholder row type and fails at run time.
-- `DELETE TABLE <itab> WITH TABLE KEY (dynamic_name) = value` cannot be parsed at
-  all. `READ TABLE ... WITH KEY (dynamic_name)` parses fine, which makes the gap
-  easy to trip over. Use `DELETE TABLE <itab> FROM <work_area>` instead.
-
-When a test fails for one of these reasons and not because the ABAP is wrong,
-add it to `ci/offstack-known-gaps.json` with a concrete explanation. It is then
-reported `XFAIL` and does not break the build. If a listed test later starts
-passing it is reported `XPASS` and **does** break the build, so stale entries
-cannot accumulate — delete the entry in that case.
-
-Keep that list short. Every entry is a limit on what CI can prove, so prefer
-making the code testable over adding an exception.
+- DDIC conversion exits are not wired up: the domain's `CONVEXIT` is parsed from
+  the XML but never reaches the runtime, so `CONVERSION_EXIT_*` routines are
+  never called.
+- `GET_DDIC_FIELD_LIST` fills only `TABNAME`, `FIELDNAME`, `LENG` and `KEYFLAG`.
+  `INTTYPE` and `DATATYPE` come back blank, so anything that branches on the
+  field's type sees nothing.
+- `READ TABLE … WITH TABLE KEY (name) = value` does not match when `name` is a
+  variable — `sy-subrc` is 4. The same statement with a literal key name works,
+  which makes the gap easy to miss.
+- `SORT <itab> BY (name)` transpiles, but the sort key is **silently dropped** —
+  the table comes back in its original order with `sy-subrc` 0.
+- `DELETE TABLE <itab> WITH TABLE KEY (name) = value` cannot be parsed at all and
+  fails the build with `parser_error`. Use `DELETE TABLE <itab> FROM <work_area>`
+  instead.
 
 ---
 
@@ -173,18 +201,39 @@ ones that come up most often in review here.
 
 - `MOVE`, `CREATE OBJECT`, `CALL METHOD`, `CONCATENATE`, `ADD … TO`, `REFRESH`,
   `TYPE-POOLS`, `PERFORM`/`FORM`.
+- `SWITCH` or `COND` without `ELSE` when every case matters. `SWITCH` raises
+  `CX_SY_CASE_NOT_FOUND`; `COND` quietly returns the initial value, which is the
+  more dangerous of the two because nothing tells you it happened.
 - `CHECK` for validation inside a method. `CHECK` belongs at the start of a loop
   pass; everywhere else it exits silently and the caller cannot tell whether the
   method did its job or gave up. Use `IF … RETURN` with a result, or raise.
 - Swallowing exceptions. `CATCH cx_… ##NO_HANDLER` on a path the caller depends
   on hides real failures — either handle it, wrap it, or let it out.
 - Commented-out code. Git remembers it.
-- Hardcoded user-facing text. Use text symbols.
+- Hardcoded user-facing text. Use text symbols or the message class.
 
 **Error handling.** A method that cannot do what its name says should say so.
-Prefer an exception; where a result structure is the better fit, fill it with
-something the caller can act on — never return an initial structure and leave
-them guessing.
+Failures go through `ZCX_ABAP_PROJECTS`, which carries a T100 message from
+`ZABAP_PROJECTS` plus the object name and a detail string, so the caller gets a
+usable text rather than a bare exception. Where a result structure is the better
+fit — `LOCK_TABLE` is the example, because a lock held by somebody else is a
+routine outcome and not an error — fill it with something the caller can act on.
+Never return an initial structure and leave them guessing.
+
+Calling a classic exception interface functionally is a short dump waiting to
+happen. `CL_ABAP_TYPEDESCR=>DESCRIBE_BY_NAME` raises `TYPE_NOT_FOUND` as a
+classic exception, so it needs the long form:
+
+```abap
+cl_abap_typedescr=>describe_by_name(
+  EXPORTING  p_name         = iv_table_name
+  RECEIVING  p_descr_ref    = DATA(type)
+  EXCEPTIONS type_not_found = 1
+             OTHERS         = 2 ).
+IF sy-subrc <> 0.
+  RETURN.
+ENDIF.
+```
 
 ---
 
@@ -198,7 +247,7 @@ CLASS ltc_split_table DEFINITION FINAL
   FOR TESTING RISK LEVEL HARMLESS DURATION SHORT.
 
   PRIVATE SECTION.
-    METHODS when_segment_zero_then_raises FOR TESTING RAISING cx_static_check.
+    METHODS given_zero_segment_then_raise FOR TESTING RAISING cx_static_check.
 ENDCLASS.
 ```
 
@@ -208,12 +257,23 @@ ENDCLASS.
   released for ABAP Cloud, and does not exist off-stack.
 - Every assertion carries a meaningful `msg`.
 - Name methods after the behaviour, not the method under test:
-  `given_…_when_…_then_…`, 30 characters or fewer.
+  `given_…_then_…`, 30 characters or fewer.
 - Arrange / Act / Assert visible in the body. One concept per test.
 - No database, RFC, authority or clock dependency — inject or stub it. Tests
   that need a real system belong behind an injected interface, not in the test.
+- Prefer widening a method's visibility over `LOCAL FRIENDS`. `BUILD_VARKEY` is
+  public for exactly this reason: it is a useful call in its own right, and the
+  test class needs no privileged access to reach it.
 - Cover the edges, not just the happy path: empty input, unknown column name,
   zero or negative sizes, a table kind the method was not written for.
+- Keep a test's declarations as narrow as the behaviour it checks. A test for
+  direction validation does not need a DDIC type, and using one only makes the
+  test fail off-stack for a reason that has nothing to do with the assertion.
+
+`ZCL_ABAP_PROJECTS` currently ships four test classes — `LTC_COUNT_VALUES`,
+`LTC_ALPHA_CONVERSION`, `LTC_SPLIT_TABLE` and `LTC_BUILD_VARKEY` — with 18
+tests. `LOCK_TABLE` and `UNLOCK_TABLE` are not covered: they call `ENQUEUE`/
+`DEQUEUE` function modules directly, which needs an injection seam first.
 
 ---
 
@@ -224,24 +284,25 @@ other developers read in ADT, so write what a caller needs to know — especiall
 what happens when things go wrong.
 
 ```abap
-"! <p class="shorttext synchronized">Split a table into fixed-size chunks</p>
+"! <p class="shorttext synchronized" lang="EN">Split a table into fixed-size chunks</p>
 "!
-"! Splits any standard internal table into smaller tables of
-"! <em>segment_size</em> rows each, for parallel processing.
+"! Splits any internal table into smaller standard tables of
+"! <em>im_split_segment</em> rows each, for parallel processing.
 "!
-"! @parameter table        | Source table. A sorted or hashed table is rejected.
-"! @parameter segment_size | Rows per chunk. Must be greater than zero.
-"! @parameter result       | One data reference per chunk, in source order.
+"! @parameter im_table          | Source table, of any table kind.
+"! @parameter im_split_segment  | Rows per chunk. Must be greater than zero.
+"! @parameter re_tables         | One data reference per chunk, in source order.
 "! @raising   zcx_abap_projects | Segment size is zero or negative.
 CLASS-METHODS split_table
-  IMPORTING table         TYPE ANY TABLE
-            segment_size  TYPE i DEFAULT 100
-  RETURNING VALUE(result) TYPE tt_split_tables
+  IMPORTING !im_table          TYPE ANY TABLE
+            !im_split_segment  TYPE i DEFAULT 100
+  RETURNING VALUE(re_tables)   TYPE tt_split_tables
   RAISING   zcx_abap_projects.
 ```
 
-Document the contract, not the implementation. `@parameter table | the table`
-adds nothing; say what shape it has to be and what happens if it isn't.
+Document the contract, not the implementation. `@parameter im_table | the table`
+adds nothing; say what shape it has to be and what happens if it isn't. Always
+document `@raising` — when the exception is raised is part of the contract.
 
 ---
 
@@ -263,7 +324,7 @@ useless for finding when a behaviour changed.
 **Pull requests.** Before opening one:
 
 - [ ] `npm run lint` is clean and adds no new warnings
-- [ ] `npm test` is clean
+- [ ] `npm test` is clean, and no new `options.skip` entry was needed
 - [ ] New and changed public methods have ABAP Doc
 - [ ] New and changed behaviour has unit tests
 - [ ] `CHANGELOG.md` has an entry under `## [Unreleased]`
