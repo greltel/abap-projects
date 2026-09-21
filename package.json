@@ -6,12 +6,12 @@
   "license": "MIT",
   "scripts": {
     "lint": "abaplint abaplint.json",
-    "transpile": "abap_transpile abap_transpile.json",
-    "test": "bash ci/run_ci.sh",
+    "test": "abap_transpile abap_transpile.json && node ci/out/index.mjs",
     "clean": "rm -rf ci/out"
   },
   "devDependencies": {
     "@abaplint/cli": "^2.120.55",
-    "@abaplint/transpiler-cli": "^2.13.89"
+    "@abaplint/transpiler-cli": "^2.13.89",
+    "@abaplint/runtime": "^2.13.89"
   }
 }
