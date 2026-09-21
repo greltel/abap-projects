@@ -52,20 +52,24 @@ jobs:
         if: always()
         shell: bash
         run: |
-          total=$(grep -c ': running ' unit.txt || true)
-          skipped=$(grep -c 'skipped due to configuration' unit.txt || true)
           {
             echo '### ABAP Unit (off-stack)'
             echo
-            echo "- tests found: ${total:-0}"
-            echo "- executed: $(( ${total:-0} - ${skipped:-0} ))"
-            echo "- skipped (known off-stack gaps): ${skipped:-0}"
-            echo
-            echo '<details><summary>Full log</summary>'
-            echo
-            echo '```'
-            cat unit.txt
-            echo '```'
-            echo
-            echo '</details>'
+            if [ -f unit.txt ]; then
+              total=$(grep -c ': running ' unit.txt || true)
+              skipped=$(grep -c 'skipped due to configuration' unit.txt || true)
+              echo "- tests found: ${total:-0}"
+              echo "- executed: $(( ${total:-0} - ${skipped:-0} ))"
+              echo "- skipped (known off-stack gaps): ${skipped:-0}"
+              echo
+              echo '<details><summary>Full log</summary>'
+              echo
+              echo '```'
+              cat unit.txt
+              echo '```'
+              echo
+              echo '</details>'
+            else
+              echo '_No unit log produced — an earlier step failed._'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
