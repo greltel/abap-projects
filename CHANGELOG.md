@@ -118,43 +118,44 @@ runtime behaviour in a way that requires callers to adapt.
   — was reset to the initial value on each PBO. Elements outside the five managed
   groups are now left untouched, and `REQUEST`/`DISPLAY_3D` are set on `T_HITS`
   only.
-- `Z_SALV_ALV` no longer depends on the `/ACCGO/` namespace. Both references were
-  in `SCREEN_PBO`: `GC_SCREEN_INPUT_VISIBLE` became a local constant and
-  `GC_SYSUBRC_SUCCESS` the literal `0`.
+- All dependencies on foreign application components are gone. `/ACCGO/` (two
+  interfaces), `CL_CMS_COMMON` (7 call sites) and `CL_MMIM_MAA_2` (4 call sites)
+  were supplying nothing but the literals `'S'`, `'I'`, `'E'`, `8` and `1`, and
+  are replaced by named constants in each report. The repository now activates on
+  a plain S/4HANA system.
+- `LCL_SALV_EDIT=>SET_EDITABLE` and `GET_CONTROL` had their bodies commented out,
+  so the edit button and double-click-to-edit did nothing. Both are implemented
+  again, against the `IM_` parameter names. `GET_CONTROL` now covers only the
+  fullscreen and grid adapters — the two `CL_SALV_TABLE` actually produces here —
+  and returns an initial reference for anything else, which `SET_EDITABLE`
+  reports instead of failing silently.
+- `P_FIEL`, `CHECK_FIELD_EXISTS_IN_TABLE` and `DYNAMIC_WHERE_CLAUSE` typed their
+  field parameter as `CHAR5`, silently truncating field names and dropping the
+  filter for most fields. All three, and `GET_DATA`'s `IM_FIELD`, are now
+  `FIELDNAME`.
+- `LCL_SEL_SCREEN=>FIELDS_F4` ran one `SELECT SINGLE` on `DD04T` per component and
+  reused an inline `@DATA(scrtext_l)` that was never cleared, so a field without a
+  text inherited the previous field's description. The texts are read in one
+  `SELECT`, the description comes from a table expression with `OPTIONAL`, and
+  components without a data element are kept out of the `FOR ALL ENTRIES` driver
+  table — an initial `ROLLNAME` there would have read the whole of `DD04T`. The
+  window title is a text symbol instead of a literal.
+- `LCL_TEXTS=>POPULATE_TEXTS` called `READ_MULTIPLE_TEXTS` for every text header,
+  including the ones `STXH` already reported as having no lines, and discarded
+  every failure without a word. Empty headers are skipped outright, and texts that
+  could not be read are counted and reported, so an export with blank rows no
+  longer looks complete.
 
 ### Known issues
 
-Open findings from the source review, not yet fixed. Listed by severity so they
-can be picked up in order.
-
-- `Z_SALV_ALV` performs a fully dynamic `SELECT * FROM (table)` driven by user
-  input with no `AUTHORITY-CHECK` (line 770). Any user who can start the report
-  can read any table in the system. Needs an `S_TABU_NAM` / `S_TABU_DIS` check
-  before the select, as `SE16N` does. There is no `AUTHORITY-CHECK` anywhere in
-  `src/` today.
-- `Z_SALV_ALV` depends on two foreign application components for constants that
-  are plain literals: `CL_CMS_COMMON` (Collateral Management, 7 call sites) and
-  `CL_MMIM_MAA_2` (Inventory Management, 4 call sites).
-  `Z_DYNAMIC_TEXTS_EXPORT` uses `CL_CMS_COMMON` for the same purpose. Neither is
-  guaranteed on an arbitrary S/4HANA system, and both are only supplying values
-  like `'I'`, `'E'`, `'8'` and `'1'`.
-- `LCL_SALV_EDIT=>SET_EDITABLE` and `GET_CONTROL` are entirely commented out, so
-  the edit button and the double-click-to-edit behaviour advertised in the README
-  do nothing. The commented body still refers to the old `I_*` parameter names
-  and would not compile as it stands.
-- `LCL_UTILITIES=>CHECK_FIELD_EXISTS_IN_TABLE` and `DYNAMIC_WHERE_CLAUSE` type
-  their field parameter as `CHAR5`, and `P_FIEL` on the selection screen is
-  `CHAR5` as well. Field names up to 30 characters are silently truncated, so the
-  existence check fails and the filter is dropped for most fields.
-- `LCL_SEL_SCREEN=>FIELDS_F4` issues a `SELECT SINGLE` on `DD04T` inside a loop
-  over every component of the selected table, and the inline `@DATA(scrtext_l)`
-  is not cleared between iterations, so a field without a text inherits the
-  previous field's description. The F4 window title is a hardcoded literal.
-- `LCL_TEXTS=>POPULATE_TEXTS` calls `READ_MULTIPLE_TEXTS` once per row of
-  `LT_TEXTS` rather than passing the whole key table in one call.
-- No unit tests exist for `LOCK_TABLE` and `UNLOCK_TABLE`. They call the
-  `ENQUEUE`/`DEQUEUE` function modules directly and need an injection seam before
-  they can be covered.
+- `Z_SALV_ALV` reads any table by name through a fully dynamic
+  `SELECT * FROM (table)` and performs no `AUTHORITY-CHECK`. This is deliberate:
+  the report is a developer console, and the table name is already restricted by
+  whoever can start the program. Anyone installing it on a system with real users
+  should restrict the program or its transaction accordingly, the same way `SE16`
+  itself is restricted.
+- `LOCK_TABLE` and `UNLOCK_TABLE` have no unit tests, also deliberately. The
+  reasoning is in `CONTRIBUTING.md` under *Unit tests*.
 
 ## [1.0.0] - 2026-01-15
 
