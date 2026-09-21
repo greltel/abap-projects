@@ -29,6 +29,18 @@ CLASS: lcl_main_salv       DEFINITION DEFERRED,
 *&---------------------------------------------------------------------*
 FIELD-SYMBOLS <fs_table> TYPE INDEX TABLE.
 
+*&---------------------------------------------------------------------*
+*& GLOBAL CONSTANTS
+*&---------------------------------------------------------------------*
+CONSTANTS:
+  "MESSAGE TYPES - PREVIOUSLY BORROWED FROM CL_CMS_COMMON
+  gc_msg_type_status  TYPE syst-msgty VALUE 'S',
+  gc_msg_type_info    TYPE syst-msgty VALUE 'I',
+  gc_msg_type_error   TYPE syst-msgty VALUE 'E',
+  "GENERATED COLUMN WIDTHS - PREVIOUSLY BORROWED FROM CL_MMIM_MAA_2
+  gc_icon_column_len  TYPE i          VALUE 8,
+  gc_check_column_len TYPE i          VALUE 1.
+
 *&----------------------------------------------------------------------*
 *& CLASS LCX_EXCEPTION DEFINITION
 *&----------------------------------------------------------------------*
@@ -88,7 +100,7 @@ INTERFACE lif_data.
                        im_filepath                  TYPE file_table-filename OPTIONAL
                        im_sheet_name                TYPE char20              OPTIONAL
                        im_number_of_lines           TYPE syst_tabix          DEFAULT 100
-                       im_field                     TYPE char5               OPTIONAL
+                       im_field                     TYPE fieldname           OPTIONAL
                        im_comp                      TYPE ddoption            OPTIONAL
                        im_val                       TYPE string              OPTIONAL
                        im_checkbox_column           TYPE abap_bool           DEFAULT abap_true
@@ -266,7 +278,7 @@ CLASS lcl_utilities DEFINITION CREATE PUBLIC FRIENDS lcl_main_salv.
 
     CLASS-METHODS:
 
-      dynamic_where_clause IMPORTING im_field                TYPE char5
+      dynamic_where_clause IMPORTING im_field                TYPE fieldname
                                      im_comp                 TYPE ddoption DEFAULT if_fsbp_const_range=>option_equal
                                      im_val                  TYPE string
                                      im_table_name           TYPE tabname
@@ -274,7 +286,7 @@ CLASS lcl_utilities DEFINITION CREATE PUBLIC FRIENDS lcl_main_salv.
 
       open_dialog_excel  RETURNING VALUE(re_filepath)  TYPE file_table-filename,
 
-      check_field_exists_in_table IMPORTING im_field         TYPE char5
+      check_field_exists_in_table IMPORTING im_field         TYPE fieldname
                                             im_table         TYPE tabname30
                                   RETURNING VALUE(re_exists) TYPE abap_bool,
 
@@ -317,7 +329,7 @@ ENDCLASS.
 *----------------------------------------------------------------------*
 *       CLASS lcl_salv_edit DEFINITION
 *----------------------------------------------------------------------*
-CLASS lcl_salv_edit DEFINITION INHERITING FROM cl_salv_controller CREATE PRIVATE FINAL.
+CLASS lcl_salv_edit DEFINITION INHERITING FROM cl_salv_model_base CREATE PRIVATE FINAL.
 
   PUBLIC SECTION.
 
@@ -331,8 +343,8 @@ CLASS lcl_salv_edit DEFINITION INHERITING FROM cl_salv_controller CREATE PRIVATE
   PRIVATE SECTION.
 
 
-    CLASS-METHODS: get_control IMPORTING im_salv           TYPE REF TO cl_salv_model_base
-                               RETURNING VALUE(re_control) TYPE REF TO object.
+    CLASS-METHODS: get_control IMPORTING im_salv        TYPE REF TO cl_salv_table
+                               RETURNING VALUE(re_grid) TYPE REF TO cl_gui_alv_grid.
 
 ENDCLASS."lcl_salv_edit DEFINITION
 
@@ -445,7 +457,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b4 WITH FRAME TITLE t_title4.
 
   SELECTION-SCREEN BEGIN OF LINE.
 
-    PARAMETERS: p_fiel TYPE char5 MODIF ID id4,
+    PARAMETERS: p_fiel TYPE fieldname MODIF ID id4,
                 p_comp TYPE ddoption DEFAULT if_fsbp_const_range=>option_equal MODIF ID id4,
                 p_val  TYPE string MODIF ID id4.
 
@@ -606,7 +618,7 @@ START-OF-SELECTION.
                         )->display_data( ).
 
     CATCH lcx_exception INTO DATA(lo_exception).
-      MESSAGE lo_exception->get_text( ) TYPE cl_cms_common=>con_msg_typ_i DISPLAY LIKE cl_cms_common=>con_msg_typ_e.
+      MESSAGE lo_exception->get_text( ) TYPE gc_msg_type_info DISPLAY LIKE gc_msg_type_error.
   ENDTRY.
 
 END-OF-SELECTION.
@@ -658,11 +670,11 @@ CLASS lcl_main_salv IMPLEMENTATION.
                             ( name = lc_color_column type = CAST #( cl_abap_elemdescr=>describe_by_name( 'lvc_t_scol' ) ) ) ).
 
       IF im_icon_column EQ abap_true.
-        APPEND VALUE abap_componentdescr( name = lc_icon_column type = cl_abap_elemdescr=>get_c( cl_mmim_maa_2=>gc_integer_8 ) ) TO lt_component.
+        APPEND VALUE abap_componentdescr( name = lc_icon_column type = cl_abap_elemdescr=>get_c( gc_icon_column_len ) ) TO lt_component.
       ENDIF.
 
       IF im_checkbox_column EQ abap_true.
-        APPEND VALUE abap_componentdescr( name = lc_checkbox type = cl_abap_elemdescr=>get_c( cl_mmim_maa_2=>gc_integer_1 ) ) TO lt_component.
+        APPEND VALUE abap_componentdescr( name = lc_checkbox type = cl_abap_elemdescr=>get_c( gc_check_column_len ) ) TO lt_component.
       ENDIF.
 
       FIELD-SYMBOLS: <fs_tab> TYPE STANDARD TABLE.
@@ -727,11 +739,11 @@ CLASS lcl_main_salv IMPLEMENTATION.
                             ( name = lc_color_column type = CAST #( cl_abap_elemdescr=>describe_by_name( 'lvc_t_scol' ) ) ) ).
 
       IF im_icon_column EQ abap_true.
-        APPEND VALUE abap_componentdescr( name = lc_icon_column type = cl_abap_elemdescr=>get_c( cl_mmim_maa_2=>gc_integer_8 ) ) TO lt_tot_comp.
+        APPEND VALUE abap_componentdescr( name = lc_icon_column type = cl_abap_elemdescr=>get_c( gc_icon_column_len ) ) TO lt_tot_comp.
       ENDIF.
 
       IF im_checkbox_column EQ abap_true.
-        APPEND VALUE abap_componentdescr( name = lc_checkbox  type = cl_abap_elemdescr=>get_c( cl_mmim_maa_2=>gc_integer_1 ) ) TO lt_tot_comp.
+        APPEND VALUE abap_componentdescr( name = lc_checkbox  type = cl_abap_elemdescr=>get_c( gc_check_column_len ) ) TO lt_tot_comp.
       ENDIF.
 
       DATA(lo_struct) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_name( im_table ) ).
@@ -1468,9 +1480,9 @@ CLASS lcl_main_salv IMPLEMENTATION.
       WHEN 'BTN_CLOSE'.
         LEAVE LIST-PROCESSING.
       WHEN 'F1'.
-        MESSAGE fcode TYPE cl_cms_common=>con_msg_typ_i DISPLAY LIKE cl_cms_common=>con_msg_typ_s.
+        MESSAGE fcode TYPE gc_msg_type_info DISPLAY LIKE gc_msg_type_status.
       WHEN 'F2'.
-        MESSAGE fcode TYPE cl_cms_common=>con_msg_typ_i DISPLAY LIKE cl_cms_common=>con_msg_typ_s.
+        MESSAGE fcode TYPE gc_msg_type_info DISPLAY LIKE gc_msg_type_status.
     ENDCASE.
 
   ENDMETHOD.
@@ -1668,7 +1680,7 @@ CLASS lcl_main_salv IMPLEMENTATION.
             OTHERS        = 2.
 
       CATCH cx_root INTO DATA(lo_exception).
-        MESSAGE TEXT-039 TYPE cl_cms_common=>con_msg_typ_i DISPLAY LIKE cl_cms_common=>con_msg_typ_e.
+        MESSAGE TEXT-039 TYPE gc_msg_type_info DISPLAY LIKE gc_msg_type_error.
     ENDTRY.
 
   ENDMETHOD.
@@ -1711,7 +1723,7 @@ CLASS lcl_main_salv IMPLEMENTATION.
         OTHERS         = 3.
 
     IF syst-subrc IS NOT INITIAL.
-      MESSAGE TEXT-038 TYPE cl_cms_common=>con_msg_typ_i DISPLAY LIKE cl_cms_common=>con_msg_typ_e.
+      MESSAGE TEXT-038 TYPE gc_msg_type_info DISPLAY LIKE gc_msg_type_error.
     ENDIF.
 
   ENDMETHOD.
@@ -2252,54 +2264,71 @@ CLASS lcl_salv_edit IMPLEMENTATION.
 
   METHOD get_control.
 
-    CHECK im_salv IS BOUND.
+    IF im_salv IS NOT BOUND.
+      RETURN.
+    ENDIF.
 
-    DATA(lo_controller) = im_salv->r_controller.
-    CHECK lo_controller IS BOUND.
+    "FROM RELEASE 7.55 CL_SALV_TABLE NO LONGER CARRIES THE CONTROLLER ITSELF AND
+    "THE ADAPTER CLASSES KEEP GET_GRID PROTECTED. THE MODEL BEHIND
+    "EXTENDED_GRID_API DOES CARRY IT, AND IF_SALV_TABLE_DISPLAY_ADAPTER IS THE
+    "RELEASED WAY DOWN TO THE UNDERLYING CL_GUI_ALV_GRID. INHERITING FROM
+    "CL_SALV_MODEL_BASE IS WHAT MAKES R_CONTROLLER REACHABLE FROM HERE
+    TRY.
+        DATA(lo_model) = CAST cl_salv_model_base( im_salv->extended_grid_api( ) ).
+      CATCH cx_sy_move_cast_error.
+        RETURN.
+    ENDTRY.
 
-    DATA(lo_adapter) = lo_controller->r_adapter.
-    CHECK lo_adapter IS BOUND.
+    IF lo_model->r_controller IS NOT BOUND.
+      RETURN.
+    ENDIF.
 
-    CASE lo_adapter->type.
-      WHEN lo_adapter->if_salv_adapter~c_adapter_type_fullscreen.
-*        r_control = CAST cl_salv_fullscreen_adapter( lo_adapter )->get_grid( ).
-      WHEN lo_adapter->if_salv_adapter~c_adapter_type_grid.
-*        r_control = CAST cl_salv_grid_adapter( lo_adapter )->get_grid( ).
-      WHEN lo_adapter->if_salv_adapter~c_adapter_type_list.
-*        r_control = CAST if_salv_table_display_adapter( lo_adapter )->r_table.
-      WHEN lo_adapter->if_salv_adapter~c_adapter_type_tree.
-*        r_control = CAST cl_salv_tree_adapter_base( lo_adapter )->r_tree.
-      WHEN lo_adapter->if_salv_adapter~c_adapter_type_append.
-      WHEN lo_adapter->if_salv_adapter~c_adapter_type_hierseq.
+    DATA(lo_adapter) = lo_model->r_controller->r_adapter.
 
-    ENDCASE.
+    "A LIST OR TREE ADAPTER HAS NO GRID BEHIND IT. SET_EDITABLE REPORTS THE
+    "INITIAL REFERENCE RATHER THAN FAILING SILENTLY
+    IF lo_adapter IS NOT INSTANCE OF if_salv_table_display_adapter.
+      RETURN.
+    ENDIF.
+
+    re_grid = CAST if_salv_table_display_adapter( lo_adapter )->get_grid( ).
 
   ENDMETHOD.
 
   METHOD set_editable.
-*
-*    DATA(lo_grid) = CAST cl_gui_alv_grid( get_control( i_salv_table ) ).
-*    CHECK lo_grid IS BOUND.
-*
-*    IF i_fieldname IS SUPPLIED AND i_fieldname IS NOT INITIAL."EDIT SPECIFIC COLUMNS
-*
-*      lo_grid->get_frontend_fieldcatalog( IMPORTING et_fieldcatalog = DATA(lt_fieldcat) ).
-*      READ TABLE lt_fieldcat ASSIGNING FIELD-SYMBOL(<fs_fieldcat>) WITH KEY fieldname = i_fieldname.
-*      CHECK syst-subrc IS INITIAL.
-*      <fs_fieldcat>-edit = i_editable.
-*      lo_grid->set_frontend_fieldcatalog( lt_fieldcat ).
-*
-*    ELSE."EDIT WHOLE ALV
-*
-*      lo_grid->get_frontend_layout( IMPORTING es_layout = DATA(ls_layout) ).
-*      ls_layout-edit = i_editable.
-*      lo_grid->set_frontend_layout( EXPORTING is_layout = ls_layout ).
-*
-*    ENDIF.
-*
-*    IF i_refresh EQ abap_true.
-*      i_salv_table->refresh( ).
-*    ENDIF.
+
+    DATA(lo_grid) = get_control( im_salv_table ).
+
+    IF lo_grid IS NOT BOUND.
+      MESSAGE 'Editing is not available for this ALV'(079) TYPE gc_msg_type_info DISPLAY LIKE gc_msg_type_error.
+      RETURN.
+    ENDIF.
+
+    IF im_fieldname IS SUPPLIED AND im_fieldname IS NOT INITIAL."EDIT SPECIFIC COLUMN
+
+      lo_grid->get_frontend_fieldcatalog( IMPORTING et_fieldcatalog = DATA(lt_fieldcat) ).
+
+      "ASSIGN ON A TABLE EXPRESSION SETS SY-SUBRC INSTEAD OF RAISING
+      ASSIGN lt_fieldcat[ fieldname = im_fieldname ] TO FIELD-SYMBOL(<fs_fieldcat>).
+
+      IF <fs_fieldcat> IS NOT ASSIGNED.
+        RETURN.
+      ENDIF.
+
+      <fs_fieldcat>-edit = im_editable.
+      lo_grid->set_frontend_fieldcatalog( lt_fieldcat ).
+
+    ELSE."EDIT WHOLE ALV
+
+      lo_grid->get_frontend_layout( IMPORTING es_layout = DATA(ls_layout) ).
+      ls_layout-edit = im_editable.
+      lo_grid->set_frontend_layout( is_layout = ls_layout ).
+
+    ENDIF.
+
+    IF im_refresh EQ abap_true.
+      im_salv_table->refresh( ).
+    ENDIF.
 
   ENDMETHOD.
 
@@ -2498,43 +2527,76 @@ CLASS lcl_sel_screen IMPLEMENTATION.
 
   METHOD fields_f4.
 
-    IF p_table IS NOT INITIAL.
+    TYPES: BEGIN OF ty_component,
+             field    TYPE fieldname,
+             rollname TYPE rollname,
+           END OF ty_component.
 
-      DATA(lt_fields)     = VALUE smt_wd_t_field_description( ).
-      DATA(lo_struct_def) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_name( p_table ) ).
+    TYPES tt_component TYPE SORTED TABLE OF ty_component WITH UNIQUE KEY field.
 
-      LOOP AT lo_struct_def->components ASSIGNING FIELD-SYMBOL(<fs_line>).
+    IF p_table IS INITIAL.
+      RETURN.
+    ENDIF.
 
-        "GET DATA ELEMENT OF THE COMPONENT
-        DATA(lo_element_def) = CAST cl_abap_elemdescr( lo_struct_def->get_component_type( <fs_line>-name ) ).
-        DATA(lw_field_info) = lo_element_def->get_ddic_field( ).
+    DATA(lo_struct_def) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_name( p_table ) ).
 
-        "GET DESCRIPTION OF THE DATA ELEMENT
-        SELECT SINGLE FROM  dd04t
-        FIELDS scrtext_l
-        WHERE rollname    EQ @lw_field_info-rollname AND
-              ddlanguage  EQ @syst-langu
-        INTO  @DATA(scrtext_l).
+    "COLLECT EVERY COMPONENT AND ITS DATA ELEMENT FIRST, SO THE TEXTS CAN BE
+    "READ IN ONE SELECT INSTEAD OF ONE SELECT SINGLE PER COMPONENT
+    DATA(lt_component) = VALUE tt_component( ).
 
-        APPEND VALUE #( field = <fs_line>-name description = scrtext_l ) TO lt_fields.
+    LOOP AT lo_struct_def->components ASSIGNING FIELD-SYMBOL(<fs_line>).
 
-      ENDLOOP.
+      DATA(lo_element_def) = CAST cl_abap_elemdescr( lo_struct_def->get_component_type( <fs_line>-name ) ).
 
-      CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
-        EXPORTING
-          retfield      = 'FIELD'
-          dynpprog      = syst-repid
-          dynpnr        = syst-dynnr
-          dynprofield   = im_fieldname
-          window_title  = 'Table Fields'
-          value_org     = 'S'
-        TABLES
-          value_tab     = lt_fields
-        EXCEPTIONS
-          error_message = 1
-          OTHERS        = 2.
+      INSERT VALUE #( field    = <fs_line>-name
+                      rollname = lo_element_def->get_ddic_field( )-rollname ) INTO TABLE lt_component.
+
+    ENDLOOP.
+
+    IF lt_component IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    "A COMPONENT BUILT AT RUNTIME HAS NO DATA ELEMENT, AND AN EMPTY ROLLNAME
+    "IN THE DRIVER TABLE WOULD READ THE WHOLE OF DD04T
+    DATA(lt_with_rollname) = lt_component.
+    DELETE lt_with_rollname WHERE rollname IS INITIAL.
+
+    IF lt_with_rollname IS NOT INITIAL.
+
+      SELECT FROM dd04t
+        FIELDS rollname, scrtext_l
+        FOR ALL ENTRIES IN @lt_with_rollname
+        WHERE rollname   EQ @lt_with_rollname-rollname
+          AND ddlanguage EQ @syst-langu
+        INTO TABLE @DATA(lt_text).
 
     ENDIF.
+
+    DATA(lt_fields) = VALUE smt_wd_t_field_description( ).
+
+    LOOP AT lt_component ASSIGNING FIELD-SYMBOL(<fs_component>).
+
+      "OPTIONAL YIELDS AN EMPTY DESCRIPTION WHEN THERE IS NO TEXT, RATHER THAN
+      "LEAVING THE PREVIOUS COMPONENT'S DESCRIPTION IN PLACE
+      APPEND VALUE #( field       = <fs_component>-field
+                      description = VALUE #( lt_text[ rollname = <fs_component>-rollname ]-scrtext_l OPTIONAL ) ) TO lt_fields.
+
+    ENDLOOP.
+
+    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+      EXPORTING
+        retfield      = 'FIELD'
+        dynpprog      = syst-repid
+        dynpnr        = syst-dynnr
+        dynprofield   = im_fieldname
+        window_title  = 'Table Fields'(078)
+        value_org     = 'S'
+      TABLES
+        value_tab     = lt_fields
+      EXCEPTIONS
+        error_message = 1
+        OTHERS        = 2.
 
   ENDMETHOD.
 
