@@ -12,6 +12,14 @@ REPORT z_dynamic_texts_export.
 *&---------------------------------------------------------------------*
 TABLES:stxh,sscrfields.
 
+*&---------------------------------------------------------------------*
+*& GLOBAL CONSTANTS
+*&---------------------------------------------------------------------*
+CONSTANTS:
+  "MESSAGE TYPES - PREVIOUSLY BORROWED FROM CL_CMS_COMMON
+  gc_msg_type_info  TYPE syst-msgty VALUE 'I',
+  gc_msg_type_error TYPE syst-msgty VALUE 'E'.
+
 CLASS: lcx_texts      DEFINITION DEFERRED,
        lcl_texts      DEFINITION DEFERRED,
        lcl_utilities  DEFINITION DEFERRED,
@@ -69,6 +77,8 @@ CLASS lcl_texts DEFINITION CREATE PUBLIC.
       tt_texts TYPE STANDARD TABLE OF t_texts WITH DEFAULT KEY INITIAL SIZE 0.
 
     DATA:lt_texts TYPE tt_texts.
+
+    DATA lv_unreadable_texts TYPE i.
 
     METHODS:
       populate_texts.
@@ -165,7 +175,7 @@ START-OF-SELECTION.
 
 
     CATCH lcx_texts INTO DATA(lo_exception).
-      MESSAGE lo_exception->get_text( ) TYPE cl_cms_common=>con_msg_typ_i DISPLAY LIKE cl_cms_common=>con_msg_typ_e.
+      MESSAGE lo_exception->get_text( ) TYPE gc_msg_type_info DISPLAY LIKE gc_msg_type_error.
   ENDTRY.
 
 END-OF-SELECTION.
@@ -288,10 +298,18 @@ CLASS lcl_texts IMPLEMENTATION.
 
   METHOD populate_texts.
 
-    DATA lt_text_table TYPE  text_lh.
-    DATA lt_error_table TYPE  text_lh.
+    DATA lt_text_table  TYPE text_lh.
+    DATA lt_error_table TYPE text_lh.
 
     LOOP AT me->lt_texts ASSIGNING FIELD-SYMBOL(<fs_line>).
+
+      CLEAR: lt_text_table, lt_error_table.
+
+      "STXH ALREADY SAYS HOW MANY LINES THE TEXT HAS, SO A HEADER WITHOUT ANY
+      "COSTS NO CALL AT ALL
+      IF <fs_line>-tdtxtlines IS INITIAL.
+        CONTINUE.
+      ENDIF.
 
       CALL FUNCTION 'READ_MULTIPLE_TEXTS'
         EXPORTING
@@ -308,24 +326,37 @@ CLASS lcl_texts IMPLEMENTATION.
           error_message           = 2
           OTHERS                  = 3.
 
-      IF syst-subrc IS INITIAL AND lt_text_table IS NOT INITIAL.
-
-        DATA(lt_text) = VALUE #( lt_text_table[ 1 ]-lines OPTIONAL ).
-
-        CALL FUNCTION 'IDMX_DI_TLINE_INTO_STRING'
-          EXPORTING
-            it_tline       = lt_text
-          IMPORTING
-            ev_text_string = <fs_line>-text
-          EXCEPTIONS
-            error_message  = 1
-            OTHERS         = 2.
-
+      IF syst-subrc IS NOT INITIAL OR lt_text_table IS INITIAL.
+        me->lv_unreadable_texts = me->lv_unreadable_texts + 1.
+        CONTINUE.
       ENDIF.
 
-      CLEAR:lt_text,lt_text_table,lt_error_table.
+      DATA(lt_text) = VALUE #( lt_text_table[ 1 ]-lines OPTIONAL ).
+
+      CALL FUNCTION 'IDMX_DI_TLINE_INTO_STRING'
+        EXPORTING
+          it_tline       = lt_text
+        IMPORTING
+          ev_text_string = <fs_line>-text
+        EXCEPTIONS
+          error_message  = 1
+          OTHERS         = 2.
+
+      IF syst-subrc IS NOT INITIAL.
+        me->lv_unreadable_texts = me->lv_unreadable_texts + 1.
+      ENDIF.
 
     ENDLOOP.
+
+    "A SINGLE UNREADABLE TEXT IS NOT WORTH FAILING THE DOWNLOAD FOR, BUT THE
+    "USER SHOULD NOT BE LEFT THINKING EVERY ROW CAME BACK COMPLETE
+    IF me->lv_unreadable_texts IS NOT INITIAL.
+
+      DATA(lv_message) = |{ me->lv_unreadable_texts } { 'text(s) could not be read and are exported empty'(015) }|.
+
+      MESSAGE lv_message TYPE gc_msg_type_info DISPLAY LIKE gc_msg_type_error.
+
+    ENDIF.
 
   ENDMETHOD.
 
