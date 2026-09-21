@@ -107,6 +107,20 @@ runtime behaviour in a way that requires callers to adapt.
 - `Z_DYNAMIC_TEXTS_EXPORT` swallowed `CX_SALV_MSG` and left the report through a
   bare `EXIT`, so a failed download looked like a successful one. It now raises
   `LCX_TEXTS` with a message.
+- `Z_SALV_ALV=>SCREEN_PBO` had both pairs of modification groups inverted. `P_DB`
+  activated `ID3` (the Excel block) and `P_FILE` activated `ID4` (the database
+  block); `P_R1` activated `ID2` and `ID5`, which only the Fiori version uses,
+  while `P_R2` activated `ID1`, which only the SAP GUI version uses. Each choice
+  now activates its own group, and `ID5` is shown only when a popup is requested.
+- `Z_SALV_ALV=>SCREEN_PBO` set `SCREEN-ACTIVE`, `SCREEN-REQUEST` and
+  `SCREEN-DISPLAY_3D` from `COND #( )` expressions with no `ELSE`, so every
+  element that matched no branch — including every parameter without a `MODIF ID`
+  — was reset to the initial value on each PBO. Elements outside the five managed
+  groups are now left untouched, and `REQUEST`/`DISPLAY_3D` are set on `T_HITS`
+  only.
+- `Z_SALV_ALV` no longer depends on the `/ACCGO/` namespace. Both references were
+  in `SCREEN_PBO`: `GC_SCREEN_INPUT_VISIBLE` became a local constant and
+  `GC_SYSUBRC_SUCCESS` the literal `0`.
 
 ### Known issues
 
@@ -118,20 +132,12 @@ can be picked up in order.
   can read any table in the system. Needs an `S_TABU_NAM` / `S_TABU_DIS` check
   before the select, as `SE16N` does. There is no `AUTHORITY-CHECK` anywhere in
   `src/` today.
-- `Z_SALV_ALV` depends on three foreign application namespaces for constants that
-  are plain literals: `/ACCGO/IF_CCK_DPQS_CONSTANTS` and `/ACCGO/IF_CAS_CONSTANTS`
-  (SAP Agricultural Contract Management), `CL_CMS_COMMON` (Collateral Management)
-  and `CL_MMIM_MAA_2` (Inventory Management). The `/ACCGO/` add-on is not present
-  on a standard S/4HANA system, so the program cannot be activated there.
-  `Z_DYNAMIC_TEXTS_EXPORT` uses `CL_CMS_COMMON` for the same purpose.
-- `Z_SALV_ALV=>SCREEN_PBO` has the two data-source groups swapped: `P_DB`
-  activates group `ID3`, which is the Excel block, and `P_FILE` activates `ID4`,
-  which is the database block. Selecting either source shows the other one's
-  fields.
-- `Z_SALV_ALV=>SCREEN_PBO` also sets `SCREEN-REQUEST` and `SCREEN-DISPLAY_3D`
-  from a `COND #( )` with no `ELSE`. Every element other than `T_HITS` therefore
-  gets the initial value, blanking the 3D frame across the whole selection
-  screen on each PBO.
+- `Z_SALV_ALV` depends on two foreign application components for constants that
+  are plain literals: `CL_CMS_COMMON` (Collateral Management, 7 call sites) and
+  `CL_MMIM_MAA_2` (Inventory Management, 4 call sites).
+  `Z_DYNAMIC_TEXTS_EXPORT` uses `CL_CMS_COMMON` for the same purpose. Neither is
+  guaranteed on an arbitrary S/4HANA system, and both are only supplying values
+  like `'I'`, `'E'`, `'8'` and `'1'`.
 - `LCL_SALV_EDIT=>SET_EDITABLE` and `GET_CONTROL` are entirely commented out, so
   the edit button and the double-click-to-edit behaviour advertised in the README
   do nothing. The commented body still refers to the old `I_*` parameter names
