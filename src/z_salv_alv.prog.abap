@@ -2371,16 +2371,45 @@ CLASS lcl_sel_screen IMPLEMENTATION.
 
   METHOD screen_pbo.
 
+    "SCREEN-ACTIVE IS A ONE CHARACTER FLAG: '1' SHOWS THE ELEMENT, '0' HIDES IT
+    CONSTANTS visible   TYPE c LENGTH 1 VALUE '1'.
+    CONSTANTS invisible TYPE c LENGTH 1 VALUE '0'.
+
+    "MODIFICATION GROUPS AND THE CHOICE THAT OWNS THEM:
+    "  ID1 CONTAINER TYPE AND GRID EVENTS - SAP GUI VERSION ONLY
+    "  ID2 POPUP FLAG AND GUI STATUS      - FIORI VERSION ONLY
+    "  ID3 EXCEL FILE, SHEET, HEADER FLAG - FILE DATA SOURCE ONLY
+    "  ID4 TABLE, LAYOUT, HOTSPOT, FILTER - DATABASE DATA SOURCE ONLY
+    "  ID5 POPUP DIMENSIONS               - FIORI VERSION, AND ONLY FOR A POPUP
+    "AN ELEMENT OUTSIDE THESE GROUPS IS LEFT UNTOUCHED
     LOOP AT SCREEN INTO DATA(ls_screen).
 
-      ls_screen-request    = COND #( WHEN ls_screen-name EQ 'T_HITS' THEN '1' ).
+      CASE ls_screen-group1.
 
-      ls_screen-display_3d = COND #( WHEN ls_screen-name EQ 'T_HITS' THEN '1' ).
+        WHEN 'ID1'.
+          ls_screen-active = COND #( WHEN p_r1 EQ abap_true THEN visible ELSE invisible ).
 
-      ls_screen-active     = COND #( WHEN p_r1     EQ abap_true AND ( ls_screen-group1 EQ 'ID2' OR ls_screen-group1 EQ 'ID5' ) THEN /accgo/if_cck_dpqs_constants=>gc_screen_input_visible
-                                     WHEN p_r2     EQ abap_true AND   ls_screen-group1 EQ 'ID1' THEN /accgo/if_cck_dpqs_constants=>gc_screen_input_visible
-                                     WHEN p_db   EQ abap_true AND   ls_screen-group1 EQ 'ID3' THEN /accgo/if_cck_dpqs_constants=>gc_screen_input_visible
-                                     WHEN p_file EQ abap_true AND   ls_screen-group1 EQ 'ID4' THEN /accgo/if_cck_dpqs_constants=>gc_screen_input_visible ).
+        WHEN 'ID2'.
+          ls_screen-active = COND #( WHEN p_r2 EQ abap_true THEN visible ELSE invisible ).
+
+        WHEN 'ID3'.
+          ls_screen-active = COND #( WHEN p_file EQ abap_true THEN visible ELSE invisible ).
+
+        WHEN 'ID4'.
+          ls_screen-active = COND #( WHEN p_db EQ abap_true THEN visible ELSE invisible ).
+
+        WHEN 'ID5'.
+          ls_screen-active = COND #( WHEN p_r2 EQ abap_true AND p_popup EQ abap_true THEN visible ELSE invisible ).
+
+        WHEN OTHERS.
+          CONTINUE.
+
+      ENDCASE.
+
+      IF ls_screen-name EQ 'T_HITS'.
+        ls_screen-request    = '1'.
+        ls_screen-display_3d = '1'.
+      ENDIF.
 
       MODIFY SCREEN FROM ls_screen.
 
@@ -2394,7 +2423,7 @@ CLASS lcl_sel_screen IMPLEMENTATION.
               ddlanguage EQ @syst-langu
         INTO @t_descr.
 
-      IF syst-subrc NE /accgo/if_cas_constants=>gc_sysubrc_success.
+      IF syst-subrc NE 0.
         CLEAR t_descr.
       ENDIF.
 
