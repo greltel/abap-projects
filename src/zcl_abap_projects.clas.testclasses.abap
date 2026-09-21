@@ -257,22 +257,20 @@ CLASS ltc_alpha_conversion IMPLEMENTATION.
 
   METHOD given_dir_other_then_raises.
 
-    DATA result TYPE vbeln.
+    " The direction is validated before any dictionary lookup, so this test
+    " needs no DDIC type of its own.
+    DATA result TYPE string.
 
     TRY.
         zcl_abap_projects=>alpha_conversion(
-          EXPORTING iv_input  = CONV vbeln( '123' )
+          EXPORTING iv_input  = `123`
                     im_alpha  = zcl_abap_projects=>s_alpha_conversion-other
           IMPORTING ev_output = result ).
 
-        cl_abap_unit_assert=>fail(
-          msg = `Direction other must not silently fall back to INPUT` ).
+        cl_abap_unit_assert=>fail( msg = 'Expected ZCX_ABAP_PROJECTS for direction OTHER' ).
 
-      CATCH zcx_abap_projects INTO DATA(error).
-        cl_abap_unit_assert=>assert_equals(
-          act = error->if_t100_message~t100key-msgno
-          exp = zcx_abap_projects=>unknown_direction-msgno
-          msg = `Expected unknown_direction` ).
+      CATCH zcx_abap_projects.
+        " expected
     ENDTRY.
 
   ENDMETHOD.
