@@ -44,10 +44,13 @@ DATA(length) = cl_mmim_maa_2=>gc_integer_8.
 CONSTANTS icon_column_length TYPE i VALUE 8.
 ```
 
-**2. Dynamic data access needs an authority check.** Anything that reads a table
-name from user input must check the caller's authorisation before selecting,
-the way `SE16`/`SE16N` do. A dynamic `SELECT` without `AUTHORITY-CHECK` turns a
-convenience report into a way of reading any table in the system.
+**2. Dynamic data access stays read-only.** `Z_SALV_ALV` reads any table by name,
+and that is the point of it. Access is governed by who can start the program —
+the same way `SE16` is restricted — rather than by an `AUTHORITY-CHECK` in the
+code. Keep it that way: never add a dynamic path that writes, deletes or locks a
+table chosen at runtime, and never let a table name reach anything other than a
+`SELECT`. Anyone installing this on a system with real users should restrict the
+program or its transaction accordingly.
 
 ---
 
@@ -105,9 +108,9 @@ Two rules are worth knowing about because they shape how code is written here:
 - `sql_escape_host_variables` and `obsolete_statement` are `Error`. There is no
   grandfathering — if you touch a statement, it comes up to standard.
 
-`dangerous_statement` is not enabled yet. It is switched on together with the
-authority check described in ground rule 2, so that the dynamic `SELECT` in
-`Z_SALV_ALV` does not permanently sit on an exemption.
+`dangerous_statement` is not enabled. The dynamic `SELECT` in `Z_SALV_ALV` is
+what the report is for, so the rule would do nothing but hold a permanent
+exemption. Ground rule 2 is what keeps that statement honest instead.
 
 ### `npm test` — off-stack ABAP Unit
 
@@ -177,6 +180,10 @@ specialises in — runtime-typed dynamic programming. Verified limits today:
 - `DELETE TABLE <itab> WITH TABLE KEY (name) = value` cannot be parsed at all and
   fails the build with `parser_error`. Use `DELETE TABLE <itab> FROM <work_area>`
   instead.
+- `TEST-SEAM` / `TEST-INJECTION` is rejected outright with
+  `Statement TestSeam not supported`, and it fails the whole build rather than the
+  one test that uses it. Where something has to be faked, it has to be faked
+  through an interface.
 
 ---
 
@@ -272,8 +279,21 @@ ENDCLASS.
 
 `ZCL_ABAP_PROJECTS` currently ships four test classes — `LTC_COUNT_VALUES`,
 `LTC_ALPHA_CONVERSION`, `LTC_SPLIT_TABLE` and `LTC_BUILD_VARKEY` — with 18
-tests. `LOCK_TABLE` and `UNLOCK_TABLE` are not covered: they call `ENQUEUE`/
-`DEQUEUE` function modules directly, which needs an injection seam first.
+tests.
+
+**`LOCK_TABLE` and `UNLOCK_TABLE` are deliberately not covered.** Faking the
+`ENQUEUE`/`DEQUEUE` call means either a test seam, which the transpiler rejects
+and which would take the whole build down with it, or a lock interface plus a
+production implementation of it injected into the class. Neither buys a test that
+CI can actually run: both methods reach `BUILD_VARKEY` → `KEY_FIELDS` →
+`GET_DDIC_FIELD_LIST`, and the specific-lock path reads `DD25L`, so the
+dictionary gaps above stop the test before the enqueue is ever reached. Two new
+repository objects and an injectable static, for tests that would live
+permanently in `options.skip`, is not a trade this repository makes. Verify the
+locking behaviour in ADT, and say in the pull request what you ran.
+
+If a future change makes the dictionary calls injectable for their own sake, the
+lock tests come along for free and this paragraph should go.
 
 ---
 
