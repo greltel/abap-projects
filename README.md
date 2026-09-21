@@ -59,10 +59,10 @@ npm test       # transpile to JavaScript and run ABAP Unit off-stack
 ```
 
 `npm test` uses the [abaplint transpiler](https://github.com/abaplint/transpiler) with
-[open-abap-core](https://github.com/open-abap/open-abap-core). A few tests cannot pass off-stack
-because the runtime does not implement DDIC conversion exits or fill the full DDIC field list;
-those are listed with their reason in `ci/offstack-known-gaps.json` and reported as `XFAIL`.
-They all pass in ADT.
+[open-abap-core](https://github.com/open-abap/open-abap-core). A few tests cannot run off-stack
+because the runtime does not implement DDIC conversion exits and does not fill the full DDIC
+field list. Those are listed with their reason under `options.skip` in `abap_transpile.json`
+and are reported as skipped. They all pass in ADT.
 
 # Project 1 Dynamic SALV Console
 
