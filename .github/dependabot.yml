@@ -4,6 +4,8 @@ updates:
     directory: /
     schedule:
       interval: daily
+      time: "07:00"
+      timezone: Europe/Athens
     groups:
       abaplint:
         patterns:
