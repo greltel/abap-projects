@@ -127,28 +127,33 @@ src/*.abap ──▶ abap_transpile ──▶ output/*.mjs ──▶ node ──
 
 | Path | Purpose |
 |---|---|
-| `abap_transpile.json` | Which objects get transpiled, and which tests are skipped |
+| `abap_transpile.json` | Which objects get transpiled, and where the DDIC stubs are |
+| `test/ddic/` | Minimal abapGit XML for the SAP standard DDIC objects the tests reference |
 | `output/` | Generated JavaScript and the test driver — **not** committed |
 
-There is no separate runner script and no DDIC stub folder. The transpiler
-generates `output/index.mjs` itself, and `package.json` simply chains the two
-steps:
+There is no separate runner script. The transpiler generates `output/index.mjs`
+itself, and `package.json` simply chains the two steps:
 
 ```json
 "test": "abap_transpile abap_transpile.json && node output/index.mjs"
 ```
 
-**Why there are no DDIC stubs.** `abap_transpile.json` sets
-`"unknownTypes": "runtimeError"`. A type the off-stack runtime has no dictionary
-for — `MARA`, `VBELN`, `RSTABLE` and so on — no longer breaks transpilation; it
-only fails if a test that actually runs touches it. That keeps the repository
-free of hand-maintained stub XML, at the price of the failure surfacing later.
+**DDIC stubs.** open-abap-core ships no SAP application dictionary, so a test that
+touches `MARA`, `VBELN`, `RSTABLE` and the like would hit a `Void type` error.
+`test/ddic/` holds minimal abapGit-format definitions of exactly those objects —
+key fields, lengths and `CONVEXIT` only — and `abap_transpile.json` loads the
+folder as a local library. The folder sits outside `/src/` on purpose: abapGit's
+starting folder never deploys it and abaplint's `files` glob never analyses it.
+`"unknownTypes": "runtimeError"` stays on, so a type nobody stubbed still fails
+loudly in the test that uses it rather than at transpile time. When a new test
+needs another standard object, add the smallest stub that satisfies it there.
 
 **Adding an object to the off-stack suite.** Add a pattern to `input_filter` in
 `abap_transpile.json` and run `npm test`.
 
-**Skipping a test that cannot run off-stack.** Add an entry to `options.skip`,
-with a `comment` saying why:
+**Skipping a test that cannot run off-stack.** The list is currently empty and
+should stay that way. If a genuine runtime gap appears, add an entry to
+`options.skip` with a `comment` saying why:
 
 ```json
 { "comment": "DDIC conversion exits are not wired up off-stack, CONVEXIT comes back blank",
