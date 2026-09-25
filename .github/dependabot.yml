@@ -6,8 +6,8 @@ updates:
       interval: daily
       time: "07:00"
       timezone: Europe/Athens
-     cooldown:
-       default-days: 0
+    cooldown:
+      default-days: 0
     groups:
       abaplint:
         patterns:
@@ -16,4 +16,3 @@ updates:
     directory: /
     schedule:
       interval: weekly
-      
