@@ -59,10 +59,10 @@ npm test       # transpile to JavaScript and run ABAP Unit off-stack
 ```
 
 `npm test` uses the [abaplint transpiler](https://github.com/abaplint/transpiler) with
-[open-abap-core](https://github.com/open-abap/open-abap-core). A few tests cannot run off-stack
-because the runtime does not implement DDIC conversion exits and does not fill the full DDIC
-field list. Those are listed with their reason under `options.skip` in `abap_transpile.json`
-and are reported as skipped. They all pass in ADT.
+[open-abap-core](https://github.com/open-abap/open-abap-core). Every ABAP Unit test runs
+off-stack, including the ones that need SAP standard DDIC objects such as `MARA` or `VBELN`:
+minimal stubs for those live under `test/ddic/` and are loaded only by the transpiler, never
+by abapGit or abaplint.
 
 # Project 1 Dynamic SALV Console
 
