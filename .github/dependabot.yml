@@ -7,7 +7,7 @@ updates:
       time: "07:00"
       timezone: Europe/Athens
     cooldown:
-      default-days: 0
+      default-days: 5
     groups:
       abaplint:
         patterns:
