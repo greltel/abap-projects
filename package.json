@@ -10,8 +10,8 @@
     "clean": "rm -rf output"
   },
   "devDependencies": {
-    "@abaplint/cli": "^2.120.68",
-    "@abaplint/transpiler-cli": "^2.13.99",
-    "@abaplint/runtime": "^2.13.99"
+    "@abaplint/cli": "^2.120.70",
+    "@abaplint/transpiler-cli": "^2.13.100",
+    "@abaplint/runtime": "^2.13.100"
   }
 }
